@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=0.7, maximum-scale=1, user-scalable=0" />
+<title>온라인오목:매칭중....</title>
+
+<style>
+    body {
+        -ms-overflow-style: none;
+    }
+
+    ::-webkit-scrollbar {
+        display: none;
+    }
+
+    #output {
+        text-align: center;
+        font-size: 110%;
+        background-color: rgba(159, 204, 255, 0.616);
+        width: 30%;
+        margin: auto;
+    }
+
+    #canvas {
+        display: block;
+        box-shadow: 5px 5px 5px 5px rgba(0, 0, 0, 0.3);
+        background-color: rgb(224, 158, 59);
+        margin: auto;
+    }
+</style>
+
+<script language="javascript" type="text/javascript">
+    window.onload = function () {
+        var check = new Array(225);
+        var my_turn = false;
+        var mycolor;
+        const socket = new WebSocket('ws' + (location.protocol === 'https:' ? 's' : '') + '://' + window.location.host + '/ws');
+        canvas = document.getElementById('canvas');
+        ctx = canvas.getContext('2d');
+        if (window.matchMedia('(orientation: portrait)').matches) {
+            canvas.height = canvas.width = window.innerWidth * 0.9;
+        } else {
+            canvas.height = canvas.width = window.innerHeight * 0.9;
+        }
+        socket.onopen = function (evt) {
+            for (var x = 0; x < 14; x++) {
+                for (var y = 0; y < 14; y++) {
+                    ctx.strokeStyle = 'black';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect((canvas.width / 14) * x, (canvas.height / 14) * y, (canvas.width / 14), (canvas.width / 14));
+                }
+            }
+            writing("유저 매칭중.....");
+            document.addEventListener('mouseup', (e) => {
+                if (e.target.id == 'canvas' && my_turn) {
+                    var x = Math.round(Math.abs(e.offsetX) / (canvas.width / 14));
+                    var y = Math.round(Math.abs(e.offsetY) / (canvas.height / 14));
+                    if (!check[x + y * 15]) {
+                        check[x + y * 15] = true;
+                        socket.send(x + y * 15);
+                        my_turn = false;
+                    }
+                }
+            });
+        }
+        socket.onmessage = function (evt) {
+            if (JSON.parse(evt.data).data == "") {
+                if (JSON.parse(evt.data).YourColor != "") {
+                    mycolor = JSON.parse(evt.data).YourColor;
+                    if (mycolor == "black") {
+                        my_turn = true;
+                        document.title = '온라인오목:흑돌';
+                        writing("흑돌");
+                    }
+                    else {
+                        document.title = '온라인오목:백돌';
+                        writing("백돌");
+                    }
+                } else {
+                    alert(JSON.parse(evt.data).message);
+                    location.reload();
+                }
+            }
+            else {
+                check[JSON.parse(evt.data).data] = true;
+                draw(JSON.parse(evt.data).data, JSON.parse(evt.data).color);
+                if (JSON.parse(evt.data).color != mycolor) {
+                    my_turn = true;
+                }
+            }
+        };
+        socket.onclose = function (evt) {
+            writing("상대가 나갔습니다");
+            setTimeout(function () {
+                location.reload();
+            }, 2000);
+        };
+        function draw(omok, color) {
+            if (omok != "-1") {
+                ctx.fillStyle = color;
+                ctx.lineWidth = 2;
+                strokeStyle = "gray";
+                ctx.beginPath();
+                ctx.arc(
+                    (omok % Math.sqrt(225)) * (canvas.height / 14),
+                    (Math.floor(omok / Math.sqrt(225))) * (canvas.height / 14),
+                    canvas.width / 40,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.stroke();
+                ctx.fill();
+            }
+        }
+        function writing(txt) {
+            document.getElementById("output").innerText = txt;
+        }
+        socket.onerror = function (error) {
+            alert("[error]");
+        }
+    };
+</script>
+
+<body>
+    <canvas id='canvas'></canvas>
+    <div id='output'></div>
+</body>
+
+</html>
