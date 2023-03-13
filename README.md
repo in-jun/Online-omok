@@ -4,13 +4,13 @@
 
 ## Go 언어 코드
 
-Go 언어로 작성된 코드에서 `omok_room` 구조체는 오목 방의 상태를 나타냅니다. 이 구조체에는 15x15 크기의 오목판(`board_15x15`), 두 명의 사용자(`user_1`, `user_2`)가 포함됩니다. `user` 구조체는 사용자의 웹소켓 연결(`ws`)과 매칭 상태(`check`)를 나타냅니다.
+Go 언어로 작성된 코드에서 `OmokRoom` 구조체는 오목 방의 상태를 나타냅니다. 이 구조체에는 15x15 크기의 오목판(`board_15x15`), 두 명의 사용자(`user_1`, `user_2`)가 포함됩니다. `user` 구조체는 사용자의 웹소켓 연결(`ws`)과 매칭 상태(`check`)를 나타냅니다.
 
-`main` 함수는 프로그램의 시작점입니다. 이 함수에서는 웹 서버를 시작하고 `/ws` 경로와 `/omok` 경로에 각각 `socket_handler` 함수와 `index` 함수를 연결합니다.
+`main` 함수는 프로그램의 시작점입니다. 이 함수에서는 웹 서버를 시작하고 `/ws` 경로와 `/` 경로에 각각 `SocketHandler` 함수와 `index` 함수를 연결합니다.
 
-`socket_handler` 함수는 웹소켓 연결을 처리하는 함수입니다. 이 함수에서는 `upgrader.Upgrade` 메서드를 호출하여 HTTP 연결을 웹소켓 연결로 업그레이드합니다. 그런 다음 `room_matching` 함수를 호출하여 사용자를 방에 매칭시킵니다.
+`SocketHandler` 함수는 웹소켓 연결을 처리하는 함수입니다. 이 함수에서는 `upgrader.Upgrade` 메서드를 호출하여 HTTP 연결을 웹소켓 연결로 업그레이드합니다. 그런 다음 `RoomMatching` 함수를 호출하여 사용자를 방에 매칭시킵니다.
 
-`room_matching` 함수는 사용자를 방에 매칭시키는 함수입니다. 이 함수는 `omok_data` 배열을 순회하면서 빈 방을 찾습니다. 빈 방이 있으면 사용자를 해당 방에 배정하고 `message_handler` 함수를 호출합니다.
+`RoomMatching` 함수는 사용자를 방에 매칭시키는 함수입니다. 이 함수는 `OmokRoomData` 배열을 순회하면서 빈 방을 찾습니다. 빈 방이 있으면 사용자를 해당 방에 배정하고 `MessageHandler` 함수를 호출합니다.
 
 ## HTML과 JavaScript 코드
 
@@ -20,7 +20,7 @@ HTML과 JavaScript로 작성된 코드에서 `window.onload` 함수는 페이지
 
 1. Go 언어가 설치되어 있지 않다면 [여기](https://golang.org/dl/)에서 설치하세요.
 2. Go 언어 코드가 있는 디렉터리에서 다음 명령어를 실행하세요: `go run main.go`
-3. 브라우저에서 [http://localhost:8080/omok](http://localhost:8080/omok)으로 접속하세요.
+3. 브라우저에서 [http://localhost:8080](http://localhost:8080)으로 접속하세요.
 4. 다른 창에서도 같은 주소로 접속하여 게임을 시작하세요!
 
 ## 게임 방법
