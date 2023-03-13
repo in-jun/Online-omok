@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -43,7 +42,6 @@ var upgrader = websocket.Upgrader{}
 var OmokRoomData [max]OmokRoom
 
 func main() {
-	go ckk()
 	http.HandleFunc("/ws", SocketHandler)
 	http.HandleFunc("/", index)
 	http.ListenAndServe(":8080", nil)
@@ -171,22 +169,4 @@ func (room *OmokRoom) reset() {
 	room.board_15x15 = [225]uint8{}
 	room.uesr_1.ws.Close()
 	room.uesr_2.ws.Close()
-}
-
-func ckk() {
-	for j := 0; true; j++ {
-		fmt.Printf("t:%d \n", j)
-		for i := 0; i < max; i++ {
-
-			if OmokRoomData[i].uesr_1.check {
-				fmt.Printf("room:%d ,1\n", i)
-
-			}
-			if OmokRoomData[i].uesr_2.check {
-				fmt.Printf("room:%d ,2\n", i)
-			}
-		}
-		fmt.Printf("\n\n")
-		time.Sleep(100000 * time.Microsecond)
-	}
 }
