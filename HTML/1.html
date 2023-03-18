@@ -43,14 +43,19 @@
                 for (var y = 0; y < 14; y++) {
                     ctx.strokeStyle = 'black';
                     ctx.lineWidth = 1;
-                    ctx.strokeRect((canvas.width / 14) * x, (canvas.height / 14) * y, (canvas.width / 14), (canvas.width / 14));
+                    ctx.strokeRect(
+                        ((canvas.width - 40) / 14) * x + 20,
+                        ((canvas.width - 40) / 14) * y + 20,
+                        ((canvas.width - 40) / 14),
+                        ((canvas.width - 40) / 14)
+                    );
                 }
             }
             writing("유저 매칭중.....");
             document.addEventListener('mouseup', (e) => {
                 if (e.target.id == 'canvas' && my_turn) {
-                    var x = Math.round(Math.abs(e.offsetX) / (canvas.width / 14));
-                    var y = Math.round(Math.abs(e.offsetY) / (canvas.height / 14));
+                    var x = Math.round(Math.abs(e.offsetX - 20) / ((canvas.width - 40) / 14));
+                    var y = Math.round(Math.abs(e.offsetY - 20) / ((canvas.height - 40) / 14));
                     if (!check[x + y * 15]) {
                         check[x + y * 15] = true;
                         socket.send(x + y * 15);
@@ -110,8 +115,8 @@
                 strokeStyle = "gray";
                 ctx.beginPath();
                 ctx.arc(
-                    (omok % Math.sqrt(225)) * (canvas.height / 14),
-                    (Math.floor(omok / Math.sqrt(225))) * (canvas.height / 14),
+                    (omok % Math.sqrt(225)) * ((canvas.height - 40) / 14) + 20,
+                    (Math.floor(omok / Math.sqrt(225))) * ((canvas.height - 40) / 14) + 20,
                     canvas.width / 40,
                     0,
                     Math.PI * 2
