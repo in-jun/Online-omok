@@ -35,6 +35,7 @@
         var check = new Array(225);
         var myTurn = false;
         var myColor;
+        var yourColor;
 
         var imgData;
         var margin;
@@ -47,7 +48,7 @@
         socket.onopen = function (evt) {
             for (var x = 0; x < 14; x++) {
                 for (var y = 0; y < 14; y++) {
-                    ctx.strokeStyle = 'black';
+                    ctx.strokeStyle = "black";
                     ctx.lineWidth = 1;
                     ctx.strokeRect(
                         boardSize * x + margin,
@@ -64,6 +65,7 @@
                     var y = Math.round(Math.abs(event.offsetY - 20) / boardSize);
                     if (!check[x + y * 15]) {
                         check[x + y * 15] = true;
+                        draw(x + y * 15, myColor);
                         socket.send(x + y * 15);
                         myTurn = false;
                     }
@@ -73,15 +75,20 @@
 
         socket.onmessage = function (event) {
             const message = JSON.parse(event.data);
-            if (message.data == "") {
+            if (message.data != "") {
+                check[message.data] = true;
+                draw(message.data, yourColor);
+                myTurn = true;
+            } else {
                 if (message.YourColor != "") {
                     myColor = message.YourColor;
+                    yourColor = (myColor == "black" ? "white" : "black")
                     if (myColor == "black") {
                         myTurn = true;
-                        document.title = '온라인오목:흑돌';
+                        document.title = "온라인오목:흑돌";
                         writing("흑돌");
                     } else {
-                        document.title = '온라인오목:백돌';
+                        document.title = "온라인오목:백돌";
                         writing("백돌");
                     }
                 } else {
@@ -89,12 +96,6 @@
                         alert(message.message);
                         location.reload();
                     }, 1000);
-                }
-            } else {
-                check[message.data] = true;
-                draw(message.data, message.color);
-                if (message.color != myColor) {
-                    myTurn = true;
                 }
             }
         };
@@ -137,7 +138,6 @@
         function writing(txt) {
             document.getElementById("output").innerText = txt;
         };
-
     };
 </script>
 

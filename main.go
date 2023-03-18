@@ -32,7 +32,6 @@ type user struct {
 
 type Message struct {
 	Data      string `json:"data"`
-	Color     string `json:"color"`
 	YourColor string `json:"YourColor"`
 	Message   string `json:"message"`
 }
@@ -79,7 +78,7 @@ func RoomMatching(ws *websocket.Conn) {
 }
 
 func (room *OmokRoom) MessageHandler() {
-	if !room.uesr_1.writing("", "", "black", "") || !room.uesr_2.writing("", "", "white", "") {
+	if !room.uesr_1.writing("", "black", "") || !room.uesr_2.writing("", "white", "") {
 		room.reset()
 		return
 	}
@@ -93,7 +92,7 @@ func (room *OmokRoom) MessageHandler() {
 		i1, _ := strconv.Atoi(string(m1))
 		if room.board_15x15[i1] == emptied {
 			room.board_15x15[i1] = black
-			if !room.uesr_1.writing(string(m1), "black", "", "") || !room.uesr_2.writing(string(m1), "black", "", "") || room.VictoryConfirm(i1) {
+			if !room.uesr_2.writing(string(m1), "", "") || room.VictoryConfirm(i1) {
 				room.reset()
 				return
 			}
@@ -107,7 +106,7 @@ func (room *OmokRoom) MessageHandler() {
 		i2, _ := strconv.Atoi(string(m2))
 		if room.board_15x15[i2] == emptied {
 			room.board_15x15[i2] = white
-			if !room.uesr_2.writing(string(m2), "white", "", "") || !room.uesr_1.writing(string(m2), "white", "", "") || room.VictoryConfirm(i2) {
+			if !room.uesr_1.writing(string(m2), "", "") || room.VictoryConfirm(i2) {
 				room.reset()
 				return
 			}
@@ -145,17 +144,17 @@ func (room *OmokRoom) VictoryConfirm(index int) bool {
 
 func (room *OmokRoom) SendVictoryMessage(winnerColor uint8) {
 	if winnerColor == black {
-		room.uesr_1.writing("", "", "", "승리")
-		room.uesr_2.writing("", "", "", "패배")
+		room.uesr_1.writing("", "", "승리")
+		room.uesr_2.writing("", "", "패배")
 
 	} else {
-		room.uesr_2.writing("", "", "", "승리")
-		room.uesr_1.writing("", "", "", "패배")
+		room.uesr_2.writing("", "", "승리")
+		room.uesr_1.writing("", "", "패배")
 	}
 }
 
-func (user *user) writing(d, c, y, m string) bool {
-	msg := Message{d, c, y, m}
+func (user *user) writing(d, y, m string) bool {
+	msg := Message{d, y, m}
 	if err := user.ws.WriteJSON(msg); err != nil {
 		log.Printf("conn.WriteMessage: %v", err)
 		return false
