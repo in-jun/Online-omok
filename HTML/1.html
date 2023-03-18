@@ -30,10 +30,16 @@
 
 <script language="javascript" type="text/javascript">
     window.onload = function () {
+        const socket = new WebSocket('ws' + (location.protocol === 'https:' ? 's' : '') + '://' + window.location.host + '/ws');
+
         var check = new Array(225);
         var myTurn = false;
         var myColor;
-        const socket = new WebSocket('ws' + (location.protocol === 'https:' ? 's' : '') + '://' + window.location.host + '/ws');
+
+        var imgData;
+        var margin;
+        var boardSize;
+
         canvas = document.getElementById('canvas');
         ctx = canvas.getContext('2d');
         setCanvasSize();
@@ -44,18 +50,18 @@
                     ctx.strokeStyle = 'black';
                     ctx.lineWidth = 1;
                     ctx.strokeRect(
-                        ((canvas.width - 40) / 14) * x + 20,
-                        ((canvas.width - 40) / 14) * y + 20,
-                        ((canvas.width - 40) / 14),
-                        ((canvas.width - 40) / 14)
+                        boardSize * x + margin,
+                        boardSize * y + margin,
+                        boardSize,
+                        boardSize
                     );
                 }
             }
             writing("유저 매칭중.....");
-            document.addEventListener('mouseup', (e) => {
-                if (e.target.id == 'canvas' && myTurn) {
-                    var x = Math.round(Math.abs(e.offsetX - 20) / ((canvas.width - 40) / 14));
-                    var y = Math.round(Math.abs(e.offsetY - 20) / ((canvas.height - 40) / 14));
+            document.addEventListener('mouseup', function (event) {
+                if (event.target.id == 'canvas' && myTurn) {
+                    var x = Math.round(Math.abs(event.offsetX - 20) / boardSize);
+                    var y = Math.round(Math.abs(event.offsetY - 20) / boardSize);
                     if (!check[x + y * 15]) {
                         check[x + y * 15] = true;
                         socket.send(x + y * 15);
@@ -106,6 +112,8 @@
             } else {
                 canvas.height = canvas.width = window.innerHeight * 0.9;
             }
+            margin = canvas.width / 35;
+            boardSize = (canvas.width - (margin * 2)) / 14;
         };
 
         function draw(position, color) {
@@ -115,8 +123,8 @@
                 strokeStyle = "gray";
                 ctx.beginPath();
                 ctx.arc(
-                    (position % Math.sqrt(225)) * ((canvas.height - 40) / 14) + 20,
-                    (Math.floor(position / Math.sqrt(225))) * ((canvas.height - 40) / 14) + 20,
+                    (position % Math.sqrt(225)) * boardSize + margin,
+                    (Math.floor(position / Math.sqrt(225))) * boardSize + margin,
                     canvas.width / 40,
                     0,
                     Math.PI * 2
