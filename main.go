@@ -13,6 +13,9 @@ import (
 //go:embed HTML/1.html
 var html1 string
 
+//go:embed IMAGE/favicon.ico
+var favicon string
+
 const max = 100
 
 const black uint8 = 1
@@ -41,9 +44,18 @@ var upgrader = websocket.Upgrader{}
 var OmokRoomData [max]OmokRoom
 
 func main() {
-	http.HandleFunc("/ws", SocketHandler)
 	http.HandleFunc("/", index)
+	http.HandleFunc("/favicon.ico", faviconHandler)
+	http.HandleFunc("/ws", SocketHandler)
 	http.ListenAndServe(":8080", nil)
+}
+
+func index(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "%s", html1)
+}
+
+func faviconHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "%s", favicon)
 }
 
 func SocketHandler(w http.ResponseWriter, r *http.Request) {
@@ -53,10 +65,6 @@ func SocketHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	RoomMatching(socket)
-}
-
-func index(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "%s", html1)
 }
 
 func RoomMatching(ws *websocket.Conn) {
