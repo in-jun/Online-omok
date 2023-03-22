@@ -1,32 +1,34 @@
 <!DOCTYPE html>
 <html>
-<meta charset="utf-8" />
-<title>온라인오목:매칭중....</title>
 
-<style>
-    body {
-        -ms-overflow-style: none;
-    }
+<head>
+    <meta charset="utf-8" />
+    <title>온라인오목:매칭중....</title>
+    <style>
+        body {
+            -ms-overflow-style: none;
+        }
 
-    ::-webkit-scrollbar {
-        display: none;
-    }
+        ::-webkit-scrollbar {
+            display: none;
+        }
 
-    #canvas {
-        display: block;
-        box-shadow: 5px 2px 50px 5px;
-        border-radius: 10px;
-        margin: auto;
-    }
+        #canvas {
+            display: block;
+            box-shadow: 5px 2px 50px 5px;
+            border-radius: 10px;
+            margin: auto;
+        }
 
-    #output {
-        text-align: center;
-        font-size: 110%;
-        background-color: rgba(159, 204, 255, 0.610);
-        width: 30%;
-        margin: auto;
-    }
-</style>
+        #output {
+            text-align: center;
+            font-size: 110%;
+            background-color: rgba(159, 204, 255, 0.610);
+            width: 30%;
+            margin: auto;
+        }
+    </style>
+</head>
 
 <script language="javascript" type="text/javascript">
     window.onload = function () {
@@ -48,7 +50,7 @@
         socket.onopen = function (evt) {
             for (var x = 0; x < 14; x++) {
                 for (var y = 0; y < 14; y++) {
-                    ctx.strokeStyle = "black";
+                    ctx.strokeStyle = "red";
                     ctx.lineWidth = 1;
                     ctx.strokeRect(
                         boardSize * x + margin,
@@ -83,6 +85,18 @@
                 if (message.YourColor != "") {
                     myColor = message.YourColor;
                     yourColor = (myColor == "black" ? "white" : "black")
+                    for (var x = 0; x < 14; x++) {
+                        for (var y = 0; y < 14; y++) {
+                            ctx.strokeStyle = "black";
+                            ctx.lineWidth = 1;
+                            ctx.strokeRect(
+                                boardSize * x + margin,
+                                boardSize * y + margin,
+                                boardSize,
+                                boardSize
+                            );
+                        }
+                    }
                     if (myColor == "black") {
                         myTurn = true;
                         document.title = "온라인오목:흑돌";
