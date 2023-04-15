@@ -39,7 +39,6 @@
         var myColor;
         var yourColor;
 
-        var imgData;
         var margin;
         var boardSize;
 
@@ -108,7 +107,6 @@
                 } else {
                     setTimeout(function () {
                         alert(message.message);
-                        location.reload();
                     }, 1000);
                 }
             }
@@ -118,7 +116,7 @@
             writing("상대와 연결이 끊어졌습니다.");
             setTimeout(function () {
                 location.reload();
-            }, 3000);
+            }, 2000);
         };
 
         function setCanvasSize() {
