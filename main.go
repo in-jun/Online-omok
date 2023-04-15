@@ -70,15 +70,19 @@ func SocketHandler(w http.ResponseWriter, r *http.Request) {
 func RoomMatching(ws *websocket.Conn) {
 	for {
 		for i := 0; i < max; i++ {
+			if OmokRoomData[i].uesr_1.check {
+				if !OmokRoomData[i].uesr_2.check {
+					OmokRoomData[i].uesr_2.check = true
+					OmokRoomData[i].uesr_2.ws = ws
+					OmokRoomData[i].MessageHandler()
+					return
+				}
+			}
+		}
+		for i := 0; i < max; i++ {
 			if !OmokRoomData[i].uesr_1.check {
 				OmokRoomData[i].uesr_1.check = true
 				OmokRoomData[i].uesr_1.ws = ws
-				return
-			}
-			if !OmokRoomData[i].uesr_2.check {
-				OmokRoomData[i].uesr_2.check = true
-				OmokRoomData[i].uesr_2.ws = ws
-				OmokRoomData[i].MessageHandler()
 				return
 			}
 		}
