@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -86,6 +87,7 @@ func RoomMatching(ws *websocket.Conn) {
 				return
 			}
 		}
+		time.Sleep(time.Second)
 	}
 }
 
