@@ -41,6 +41,9 @@
         var margin;
         var boardSize;
 
+        var audio1 = new Audio("SOUND/stone.mp3");
+        var audio2 = new Audio("SOUND/enter.mp3");
+
         canvas = document.getElementById('canvas');
         ctx = canvas.getContext('2d');
         setCanvasSize();
@@ -81,6 +84,7 @@
                 myTurn = true;
             } else {
                 if (message.YourColor != "") {
+                    audio2.play();
                     myColor = message.YourColor;
                     yourColor = (myColor == "black" ? "white" : "black")
                     for (var x = 0; x < 14; x++) {
@@ -106,7 +110,7 @@
                 } else {
                     setTimeout(function () {
                         alert(message.message);
-                    }, 1000);
+                    }, 500);
                 }
             }
         };
@@ -115,7 +119,7 @@
             writing("상대와 연결이 끊어졌습니다.");
             setTimeout(function () {
                 location.reload();
-            }, 2000);
+            }, 1000);
         };
 
         function setCanvasSize() {
@@ -130,6 +134,7 @@
 
         function draw(position, color) {
             if (position != "-1") {
+                audio1.play();
                 ctx.fillStyle = color;
                 ctx.lineWidth = 2;
                 strokeStyle = "gray";

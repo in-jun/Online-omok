@@ -1,7 +1,7 @@
 package main
 
 import (
-	_ "embed"
+	"embed"
 	"fmt"
 	"log"
 	"net/http"
@@ -16,6 +16,9 @@ var html1 string
 
 //go:embed IMAGE/favicon.ico
 var favicon string
+
+//go:embed SOUND
+var SOUND embed.FS
 
 const max = 100
 
@@ -46,6 +49,7 @@ var OmokRoomData [max]OmokRoom
 
 func main() {
 	http.HandleFunc("/", index)
+	http.Handle("/SOUND/", http.FileServer(http.FS(SOUND)))
 	http.HandleFunc("/favicon.ico", faviconHandler)
 	http.HandleFunc("/ws", SocketHandler)
 	http.ListenAndServe(":8080", nil)
