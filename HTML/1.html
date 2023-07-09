@@ -86,6 +86,7 @@
                 if (message.YourColor != "") {
                     audio2.play();
                     myColor = message.YourColor;
+                    startTimer(myColor == "black" ? "흑돌" : "백돌");
                     yourColor = (myColor == "black" ? "white" : "black")
                     for (var x = 0; x < 14; x++) {
                         for (var y = 0; y < 14; y++) {
@@ -102,10 +103,8 @@
                     if (myColor == "black") {
                         myTurn = true;
                         document.title = "온라인오목:흑돌";
-                        writing("흑돌");
                     } else {
                         document.title = "온라인오목:백돌";
-                        writing("백돌");
                     }
                 } else {
                     setTimeout(function () {
@@ -154,6 +153,23 @@
         function writing(txt) {
             document.getElementById("output").innerText = txt;
         };
+
+        async function startTimer(Color) {
+            var seconds = 60;
+
+            function wait(ms) {
+                return new Promise((resolve) => {
+                    setTimeout(resolve, ms);
+                });
+            }
+
+            while (seconds >= 0) {
+                seconds = (myTurn ? seconds : 60);
+                writing(Color + (myTurn ? ' ' + seconds : ''));
+                await wait(1000);
+                seconds--;
+            }
+        }
     };
 </script>
 

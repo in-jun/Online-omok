@@ -4,6 +4,7 @@ import (
 	"embed"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"strconv"
 	"time"
@@ -100,35 +101,58 @@ func (room *OmokRoom) MessageHandler() {
 		room.reset()
 		return
 	}
+
+	var i int
+	var timeout bool
+	var err bool
+
 	for {
-		_, m1, err := room.uesr_1.ws.ReadMessage()
-		if err != nil {
-			log.Printf("conn.ReadMessage: %v", err)
+		i, timeout, err = reading(room.uesr_1.ws)
+		if timeout {
+			room.uesr_1.writing("", "", "패배(시간초과)")
+			room.uesr_2.writing("", "", "승리(시간초과)")
 			room.reset()
 			return
 		}
-		i1, _ := strconv.Atoi(string(m1))
-		if room.board_15x15[i1] == emptied {
-			room.board_15x15[i1] = black
-			if !room.uesr_2.writing(string(m1), "", "") || room.VictoryConfirm(i1) {
-				room.reset()
-				return
-			}
-		}
-		_, m2, err := room.uesr_2.ws.ReadMessage()
-		if err != nil {
+		if err {
+			room.uesr_2.writing("", "", "승리(상대가 나감)")
 			room.reset()
-			log.Printf("conn.ReadMessage: %v", err)
 			return
 		}
-		i2, _ := strconv.Atoi(string(m2))
-		if room.board_15x15[i2] == emptied {
-			room.board_15x15[i2] = white
-			if !room.uesr_1.writing(string(m2), "", "") || room.VictoryConfirm(i2) {
+		if room.board_15x15[i] == emptied {
+			room.board_15x15[i] = black
+			if !room.uesr_2.writing(strconv.Itoa(i), "", "") || room.VictoryConfirm(i) {
 				room.reset()
 				return
 			}
+		} else {
+			room.reset()
+			return
 		}
+
+		i, timeout, err = reading(room.uesr_2.ws)
+		if timeout {
+			room.uesr_1.writing("", "", "승리(시간초과)")
+			room.uesr_2.writing("", "", "패배(시간초과)")
+			room.reset()
+			return
+		}
+		if err {
+			room.uesr_1.writing("", "", "승리(상대가 나감)")
+			room.reset()
+			return
+		}
+		if room.board_15x15[i] == emptied {
+			room.board_15x15[i] = white
+			if !room.uesr_1.writing(strconv.Itoa(i), "", "") || room.VictoryConfirm(i) {
+				room.reset()
+				return
+			}
+		} else {
+			room.reset()
+			return
+		}
+
 	}
 }
 
@@ -169,6 +193,22 @@ func (room *OmokRoom) SendVictoryMessage(winnerColor uint8) {
 		room.uesr_2.writing("", "", "승리")
 		room.uesr_1.writing("", "", "패배")
 	}
+}
+
+func reading(ws *websocket.Conn) (int, bool, bool) {
+	timeoutDuration := 60 * time.Second
+	ws.SetReadDeadline(time.Now().Add(timeoutDuration))
+
+	_, m, err := ws.ReadMessage()
+	if err != nil {
+		log.Printf("conn.ReadMessage: %v", err)
+		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+			return 0, true, false
+		}
+		return 0, false, true
+	}
+	i, _ := strconv.Atoi(string(m))
+	return i, false, false
 }
 
 func (user *user) writing(d, y, m string) bool {
