@@ -29,8 +29,8 @@ const emptied uint8 = 0
 
 type OmokRoom struct {
 	board_15x15 [225]uint8
-	uesr_1      user
-	uesr_2      user
+	user1       user
+	user2       user
 }
 
 type user struct {
@@ -76,19 +76,19 @@ func SocketHandler(w http.ResponseWriter, r *http.Request) {
 func RoomMatching(ws *websocket.Conn) {
 	for {
 		for i := 0; i < max; i++ {
-			if OmokRoomData[i].uesr_1.check {
-				if !OmokRoomData[i].uesr_2.check {
-					OmokRoomData[i].uesr_2.check = true
-					OmokRoomData[i].uesr_2.ws = ws
+			if OmokRoomData[i].user1.check {
+				if !OmokRoomData[i].user2.check {
+					OmokRoomData[i].user2.check = true
+					OmokRoomData[i].user2.ws = ws
 					OmokRoomData[i].MessageHandler()
 					return
 				}
 			}
 		}
 		for i := 0; i < max; i++ {
-			if !OmokRoomData[i].uesr_1.check {
-				OmokRoomData[i].uesr_1.check = true
-				OmokRoomData[i].uesr_1.ws = ws
+			if !OmokRoomData[i].user1.check {
+				OmokRoomData[i].user1.check = true
+				OmokRoomData[i].user1.ws = ws
 				return
 			}
 		}
@@ -97,7 +97,7 @@ func RoomMatching(ws *websocket.Conn) {
 }
 
 func (room *OmokRoom) MessageHandler() {
-	if !room.uesr_1.writing("", "black", "") || !room.uesr_2.writing("", "white", "") {
+	if !room.user1.writing("", "black", "") || !room.user2.writing("", "white", "") {
 		room.reset()
 		return
 	}
@@ -107,21 +107,21 @@ func (room *OmokRoom) MessageHandler() {
 	var err bool
 
 	for {
-		i, timeout, err = reading(room.uesr_1.ws)
+		i, timeout, err = reading(room.user1.ws)
 		if timeout {
-			room.uesr_1.writing("", "", "패배(시간초과)")
-			room.uesr_2.writing("", "", "승리(시간초과)")
+			room.user1.writing("", "", "패배(시간초과)")
+			room.user2.writing("", "", "승리(시간초과)")
 			room.reset()
 			return
 		}
 		if err {
-			room.uesr_2.writing("", "", "승리(상대가 나감)")
+			room.user2.writing("", "", "승리(상대가 나감)")
 			room.reset()
 			return
 		}
 		if room.board_15x15[i] == emptied {
 			room.board_15x15[i] = black
-			if !room.uesr_2.writing(strconv.Itoa(i), "", "") || room.VictoryConfirm(i) {
+			if !room.user2.writing(strconv.Itoa(i), "", "") || room.VictoryConfirm(i) {
 				room.reset()
 				return
 			}
@@ -130,21 +130,21 @@ func (room *OmokRoom) MessageHandler() {
 			return
 		}
 
-		i, timeout, err = reading(room.uesr_2.ws)
+		i, timeout, err = reading(room.user2.ws)
 		if timeout {
-			room.uesr_1.writing("", "", "승리(시간초과)")
-			room.uesr_2.writing("", "", "패배(시간초과)")
+			room.user1.writing("", "", "승리(시간초과)")
+			room.user2.writing("", "", "패배(시간초과)")
 			room.reset()
 			return
 		}
 		if err {
-			room.uesr_1.writing("", "", "승리(상대가 나감)")
+			room.user1.writing("", "", "승리(상대가 나감)")
 			room.reset()
 			return
 		}
 		if room.board_15x15[i] == emptied {
 			room.board_15x15[i] = white
-			if !room.uesr_1.writing(strconv.Itoa(i), "", "") || room.VictoryConfirm(i) {
+			if !room.user1.writing(strconv.Itoa(i), "", "") || room.VictoryConfirm(i) {
 				room.reset()
 				return
 			}
@@ -186,12 +186,12 @@ func (room *OmokRoom) VictoryConfirm(index int) bool {
 
 func (room *OmokRoom) SendVictoryMessage(winnerColor uint8) {
 	if winnerColor == black {
-		room.uesr_1.writing("", "", "승리")
-		room.uesr_2.writing("", "", "패배")
+		room.user1.writing("", "", "승리")
+		room.user2.writing("", "", "패배")
 
 	} else {
-		room.uesr_2.writing("", "", "승리")
-		room.uesr_1.writing("", "", "패배")
+		room.user2.writing("", "", "승리")
+		room.user1.writing("", "", "패배")
 	}
 }
 
@@ -221,9 +221,9 @@ func (user *user) writing(d, y, m string) bool {
 }
 
 func (room *OmokRoom) reset() {
-	room.uesr_1.check = false
-	room.uesr_2.check = false
+	room.user1.check = false
+	room.user2.check = false
 	room.board_15x15 = [225]uint8{}
-	room.uesr_1.ws.Close()
-	room.uesr_2.ws.Close()
+	room.user1.ws.Close()
+	room.user2.ws.Close()
 }
