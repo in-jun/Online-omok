@@ -78,10 +78,16 @@ func RoomMatching(ws *websocket.Conn) {
 		for i := 0; i < max; i++ {
 			if OmokRoomData[i].user1.check {
 				if !OmokRoomData[i].user2.check {
-					OmokRoomData[i].user2.check = true
-					OmokRoomData[i].user2.ws = ws
-					OmokRoomData[i].MessageHandler()
-					return
+					if IsWebSocketConnected(OmokRoomData[i].user1.ws) {
+						if IsWebSocketConnected(ws) {
+							OmokRoomData[i].user2.check = true
+							OmokRoomData[i].user2.ws = ws
+							OmokRoomData[i].MessageHandler()
+						}
+						return
+					} else {
+						OmokRoomData[i].reset()
+					}
 				}
 			}
 		}
@@ -220,10 +226,25 @@ func (user *user) writing(d, y, m string) bool {
 	return true
 }
 
+func IsWebSocketConnected(conn *websocket.Conn) bool {
+	deadline := time.Now().Add(1 * time.Second)
+	conn.SetWriteDeadline(deadline)
+	err := conn.WriteMessage(websocket.PingMessage, nil)
+	conn.SetWriteDeadline(time.Time{})
+	return err == nil
+
+}
+
 func (room *OmokRoom) reset() {
 	room.user1.check = false
 	room.user2.check = false
 	room.board_15x15 = [225]uint8{}
-	room.user1.ws.Close()
-	room.user2.ws.Close()
+	if room.user1.ws != nil {
+		room.user1.ws.Close()
+	}
+	if room.user2.ws != nil {
+		room.user2.ws.Close()
+	}
+	room.user1.ws = nil
+	room.user2.ws = nil
 }
