@@ -53,7 +53,7 @@ func main() {
 	http.Handle("/SOUND/", http.FileServer(http.FS(SOUND)))
 	http.HandleFunc("/favicon.ico", faviconHandler)
 	http.HandleFunc("/ws", SocketHandler)
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(":1234", nil)
 }
 
 func index(w http.ResponseWriter, r *http.Request) {
