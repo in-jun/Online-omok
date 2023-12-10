@@ -49,6 +49,10 @@ var upgrader = websocket.Upgrader{}
 var OmokRoomData [max]OmokRoom
 
 func main() {
+	upgrader.CheckOrigin = func(r *http.Request) bool {
+		return true
+	}
+
 	http.HandleFunc("/", index)
 	http.Handle("/SOUND/", http.FileServer(http.FS(SOUND)))
 	http.HandleFunc("/favicon.ico", faviconHandler)
