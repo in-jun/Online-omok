@@ -1,4 +1,4 @@
-module github.com/in-jun/online-omok
+module github.com/in-jun/Online-omok
 
 go 1.19
 
