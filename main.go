@@ -236,7 +236,6 @@ func IsWebSocketConnected(conn *websocket.Conn) bool {
 	err := conn.WriteMessage(websocket.PingMessage, nil)
 	conn.SetWriteDeadline(time.Time{})
 	return err == nil
-
 }
 
 func (room *OmokRoom) reset() {
