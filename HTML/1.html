@@ -75,6 +75,13 @@
                 });
             };
 
+            // 페이지를 떠날 때 WebSocket을 닫음
+            window.addEventListener('beforeunload', function () {
+                if (socket.readyState === WebSocket.OPEN) {
+                    socket.close();
+                }
+            });
+
             socket.onmessage = function (event) {
                 handleSocketMessage(event);
             };
