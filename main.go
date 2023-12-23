@@ -15,8 +15,8 @@ import (
 //go:embed HTML/1.html
 var html1 string
 
-//go:embed IMAGE/favicon.ico
-var favicon string
+//go:embed IMAGE
+var IMAGE embed.FS
 
 //go:embed SOUND
 var SOUND embed.FS
@@ -54,18 +54,14 @@ func main() {
 	// }
 
 	http.HandleFunc("/", index)
+	http.Handle("/IMAGE/", http.FileServer(http.FS(IMAGE)))
 	http.Handle("/SOUND/", http.FileServer(http.FS(SOUND)))
-	http.HandleFunc("/favicon.ico", faviconHandler)
 	http.HandleFunc("/ws", SocketHandler)
 	http.ListenAndServe(":8080", nil)
 }
 
 func index(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%s", html1)
-}
-
-func faviconHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "%s", favicon)
 }
 
 func SocketHandler(w http.ResponseWriter, r *http.Request) {
