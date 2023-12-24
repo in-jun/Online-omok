@@ -12,8 +12,8 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-//go:embed HTML/1.html
-var html1 string
+//go:embed HTML
+var HTML embed.FS
 
 //go:embed IMAGE
 var IMAGE embed.FS
@@ -61,7 +61,30 @@ func main() {
 }
 
 func index(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "%s", html1)
+	param := r.URL.Path[1:]
+	if param == "" {
+		param = "index"
+	}
+
+	data, err := HTML.ReadFile(fmt.Sprintf("HTML/%s.html", param))
+	if err != nil {
+		serveErrorPage(w)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	w.Write(data)
+}
+
+func serveErrorPage(w http.ResponseWriter) {
+	data, err := HTML.ReadFile("HTML/err.html")
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	w.Write(data)
 }
 
 func SocketHandler(w http.ResponseWriter, r *http.Request) {
