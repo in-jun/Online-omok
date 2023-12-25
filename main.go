@@ -12,6 +12,9 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+//go:embed CONFIGS
+var CONFIGS embed.FS
+
 //go:embed HTML
 var HTML embed.FS
 
@@ -67,17 +70,23 @@ func index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data, err := HTML.ReadFile(fmt.Sprintf("HTML/%s.html", param))
-	if err != nil {
-		serveErrorPage(w)
+	if err == nil {
+		w.Header().Set("Content-Type", "text/html")
+		w.Write(data)
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/html")
-	w.Write(data)
+	data, err = CONFIGS.ReadFile(fmt.Sprintf("CONFIGS/%s", param))
+	if err == nil {
+		w.Write(data)
+		return
+	}
+
+	serveErrorPage(w)
 }
 
 func serveErrorPage(w http.ResponseWriter) {
-	data, err := HTML.ReadFile("HTML/err.html")
+	data, err := CONFIGS.ReadFile("CONFIGS/err.html")
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
