@@ -61,8 +61,8 @@
             border: 2px solid #00000075;
             width: 40%;
             margin: auto;
-            margin-top: 10px;
-            font-size: 2em;
+            margin-top: 5px;
+            font-size: 1.5em;
         }
 
         footer {
@@ -90,7 +90,7 @@
     <script language="javascript" type="text/javascript">
         window.onload = function () {
             // WebSocket 설정
-            writing("서버 연결중.....");
+            writing("서버 연결중");
             const socket = new WebSocket('ws' + (location.protocol === 'https:' ? 's' : '') + '://' + window.location.host + '/ws');
 
             // 게임 변수
@@ -115,7 +115,7 @@
             // WebSocket 이벤트 핸들러
             socket.onopen = function (evt) {
                 initializeBoard();
-                writing("유저 매칭중.....");
+                writing("유저 매칭중");
 
                 document.addEventListener('mouseup', function (event) {
                     if (event.target.id == 'canvas' && myTurn) {
