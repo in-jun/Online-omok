@@ -93,6 +93,7 @@ func serveErrorPage(w http.ResponseWriter) {
 	}
 
 	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusNotFound)
 	w.Write(data)
 }
 
