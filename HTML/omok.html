@@ -194,15 +194,17 @@
 
             // 초기 연결 처리 함수
             function handleInitialConnection(message) {
-                if (message.YourColor != "") {
+                const statusMessages = ['승리', '패배', '승리(시간초과)', '패배(시간초과)', '승리(상대가 나감)'];
+
+                if (message.YourColor !== "") {
                     audio2.play();
                     myColor = message.YourColor;
-                    startTimer(myColor == "black" ? "흑돌" : "백돌");
-                    yourColor = (myColor == "black" ? "white" : "black");
+                    startTimer(myColor === "black" ? "흑돌" : "백돌");
+                    yourColor = myColor === "black" ? "white" : "black";
                     setInitialConditions(myColor);
                 } else {
                     setTimeout(function () {
-                        alert(message.message);
+                        alert(statusMessages[message.message]);
                     }, 500);
                 }
             }

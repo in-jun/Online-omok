@@ -156,13 +156,13 @@ func (room *OmokRoom) MessageHandler() {
 	for {
 		i, timeout, err = reading(room.user1.ws)
 		if timeout {
-			room.user1.writing("", "", "패배(시간초과)")
-			room.user2.writing("", "", "승리(시간초과)")
+			room.user1.writing("", "", "3")
+			room.user2.writing("", "", "2")
 			room.reset()
 			return
 		}
 		if err {
-			room.user2.writing("", "", "승리(상대가 나감)")
+			room.user2.writing("", "", "4")
 			room.reset()
 			return
 		}
@@ -179,13 +179,13 @@ func (room *OmokRoom) MessageHandler() {
 
 		i, timeout, err = reading(room.user2.ws)
 		if timeout {
-			room.user1.writing("", "", "승리(시간초과)")
-			room.user2.writing("", "", "패배(시간초과)")
+			room.user1.writing("", "", "2")
+			room.user2.writing("", "", "3")
 			room.reset()
 			return
 		}
 		if err {
-			room.user1.writing("", "", "승리(상대가 나감)")
+			room.user1.writing("", "", "4")
 			room.reset()
 			return
 		}
@@ -233,12 +233,12 @@ func (room *OmokRoom) VictoryConfirm(index int) bool {
 
 func (room *OmokRoom) SendVictoryMessage(winnerColor uint8) {
 	if winnerColor == black {
-		room.user1.writing("", "", "승리")
-		room.user2.writing("", "", "패배")
+		room.user1.writing("", "", "0")
+		room.user2.writing("", "", "1")
 
 	} else {
-		room.user2.writing("", "", "승리")
-		room.user1.writing("", "", "패배")
+		room.user2.writing("", "", "0")
+		room.user1.writing("", "", "1")
 	}
 }
 
