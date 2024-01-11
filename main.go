@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -64,12 +65,19 @@ func main() {
 }
 
 func index(w http.ResponseWriter, r *http.Request) {
-	param := r.URL.Path[1:]
+	param := strings.TrimSuffix(r.URL.Path[1:], "/")
 	if param == "" {
 		param = "index"
 	}
 
 	data, err := HTML.ReadFile(fmt.Sprintf("HTML/%s.html", param))
+	if err == nil {
+		w.Header().Set("Content-Type", "text/html")
+		w.Write(data)
+		return
+	}
+
+	data, err = HTML.ReadFile(fmt.Sprintf("HTML/%s/index.html", param))
 	if err == nil {
 		w.Header().Set("Content-Type", "text/html")
 		w.Write(data)
