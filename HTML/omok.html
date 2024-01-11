@@ -4,14 +4,14 @@
 <head>
     <title>Stonify5 - 바로시작</title>
 
-    <!-- 기본 메타태그 -->
+    <!-- Basic Meta Tags -->
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=0.8">
     <meta name="keywords" content="오목, 오목(온라인), 오목게임하기, 친구랑 오목하기, 실시간, 오목 2인용, 온라인 오목">
     <meta name="description"
         content="실시간으로 다양한 플레이어들과 함께 오목을 즐기세요. 온라인 오목 게임에서 오목판에 돌을 놓아 상대방을 막거나 다섯 개의 돌을 연속으로 두어 승리하세요.">
 
-    <!-- Open Graph 메타태그 -->
+    <!-- Open Graph Meta Tags -->
     <meta property="og:title" content="Stonify5 - 바로시작">
     <meta property="og:description"
         content="실시간으로 다양한 플레이어들과 함께 오목을 즐기세요. 온라인 오목 게임에서 오목판에 돌을 놓아 상대방을 막거나 다섯 개의 돌을 연속으로 두어 승리하세요.">
@@ -19,13 +19,13 @@
     <meta property="og:type" content="game">
     <meta property="og:locale" content="ko_KR">
 
-    <!-- 모바일 관련 메타태그 -->
+    <!-- Mobile-related Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="오목" />
     <link rel="apple-touch-icon" href="/favicon.ico" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />
 
-    <!-- Google AdSense 스크립트 -->
+    <!-- Google AdSense Script -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7004859261139401"
         crossorigin="anonymous"></script>
 
@@ -89,30 +89,30 @@
 
     <script language="javascript" type="text/javascript">
         window.onload = function () {
-            // WebSocket 설정
+            // WebSocket setup
             writing("서버 연결중");
             const socket = new WebSocket('ws' + (location.protocol === 'https:' ? 's' : '') + '://' + window.location.host + '/ws');
 
-            // 게임 변수
+            // Game variables
             var check = new Array(225);
             var myTurn = false;
             var myColor;
             var yourColor;
 
-            // 보드 설정
+            // Board setup
             var margin;
             var boardSize;
 
-            // 오디오 요소
+            // Audio elements
             var audio1 = new Audio("SOUND/stone.mp3");
             var audio2 = new Audio("SOUND/enter.mp3");
 
-            // 캔버스 설정
+            // Canvas setup
             canvas = document.getElementById('canvas');
             ctx = canvas.getContext('2d');
             setCanvasSize();
 
-            // WebSocket 이벤트 핸들러
+            // WebSocket event handlers
             socket.onopen = function (evt) {
                 initializeBoard();
                 writing("유저 매칭중");
@@ -124,7 +124,7 @@
                 });
             };
 
-            // 페이지를 떠날 때 WebSocket을 닫음
+            // Close WebSocket when leaving the page
             window.addEventListener('beforeunload', function () {
                 if (socket.readyState === WebSocket.OPEN) {
                     socket.close();
@@ -139,7 +139,7 @@
                 handleSocketClose();
             };
 
-            // 캔버스 크기 설정 함수
+            // Function to set canvas size
             function setCanvasSize() {
                 if (window.matchMedia('(orientation: portrait)').matches) {
                     canvas.height = canvas.width = window.innerWidth * 0.9;
@@ -150,7 +150,7 @@
                 boardSize = (canvas.width - (margin * 2)) / 14;
             }
 
-            // 보드 초기화 함수
+            // Function to initialize the game board
             function initializeBoard() {
                 for (var x = 0; x < 14; x++) {
                     for (var y = 0; y < 14; y++) {
@@ -166,7 +166,7 @@
                 }
             }
 
-            // 캔버스 클릭 이벤트 처리 함수
+            // Function to handle canvas click events
             function handleCanvasClick(event) {
                 var x = Math.round(Math.abs(event.offsetX - 20) / boardSize);
                 var y = Math.round(Math.abs(event.offsetY - 20) / boardSize);
@@ -179,7 +179,7 @@
                 }
             }
 
-            // WebSocket 메시지 처리 함수
+            // Function to handle WebSocket messages
             function handleSocketMessage(event) {
                 const message = JSON.parse(event.data);
 
@@ -192,7 +192,7 @@
                 }
             }
 
-            // 초기 연결 처리 함수
+            // Function to handle initial connection
             function handleInitialConnection(message) {
                 const statusMessages = ['승리', '패배', '승리(시간초과)', '패배(시간초과)', '승리(상대가 나감)'];
 
@@ -209,7 +209,7 @@
                 }
             }
 
-            // 플레이어 색에 따라 초기화 함수
+            // Function to set initial conditions based on player color
             function setInitialConditions(color) {
                 for (var x = 0; x < 14; x++) {
                     for (var y = 0; y < 14; y++) {
@@ -231,7 +231,7 @@
                 }
             }
 
-            // WebSocket 닫힘 이벤트 처리 함수
+            // Function to handle WebSocket close event
             function handleSocketClose() {
                 writing("서버와 연결이 끊어졌습니다.");
                 setTimeout(function () {
@@ -239,7 +239,7 @@
                 }, 1000);
             }
 
-            // 보드에 돌 그리는 함수
+            // Function to draw stones on the board
             function draw(position, color) {
                 if (position != "-1") {
                     audio1.play();
@@ -259,12 +259,12 @@
                 }
             }
 
-            // 출력 텍스트 업데이트 함수
+            // Function to update the output text
             function writing(txt) {
                 document.getElementById("output").innerText = txt;
             }
 
-            // 타이머 시작 함수
+            // Function to start the timer
             async function startTimer(Color) {
                 var seconds = 60;
 
