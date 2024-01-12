@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ja" dir="ltr">
+
+<head>
+    <title>Stonify5 - すぐに開始</title>
+
+    <!-- Language Alternates -->
+    <link rel="alternate" hreflang="ko" href="https://stonify5.com/ko/gomoku" />
+    <link rel="alternate" hreflang="en" href="https://stonify5.com/en/gomoku" />
+    <link rel="alternate" hreflang="ja" href="https://stonify5.com/ja/gomoku" />
+    <link rel="alternate" hreflang="x-default" href="https://stonify5.com" />
+
+    <!-- Basic Meta Tags -->
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=0.8">
+    <meta name="keywords" content="五目並べ, オンライン五目並べ, 五目ゲーム, 友達と五目, リアルタイム, 五目 2人, オンライン五目">
+    <meta name="description" content="リアルタイムでさまざまなプレイヤーと一緒に五目を楽しんでください。オンライン五目ゲームで石を盤に置き、相手をブロックするか、石を5つ連続で置いて勝利しましょう。">
+
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="Stonify5 - すぐに開始">
+    <meta property="og:description"
+        content="リアルタイムでさまざまなプレイヤーと一緒に五目を楽しんでください。オンライン五目ゲームで石を盤に置き、相手をブロックするか、石を5つ連続で置いて勝利しましょう。">
+    <meta property="og:image" content="IMAGE/og.png">
+    <meta property="og:type" content="game">
+    <meta property="og:locale" content="ja_JP">
+
+    <!-- Mobile-related Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="五目" />
+    <link rel="apple-touch-icon" href="/favicon.ico" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+
+    <!-- Google AdSense Script -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7004859261139401"
+        crossorigin="anonymous"></script>
+
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        body::-webkit-scrollbar {
+            display: none;
+        }
+
+        #canvas {
+            display: block;
+            box-shadow: 5px 5px 10px 5px #00000026;
+            border-radius: 10px;
+            border: 2px solid #00000075;
+            margin: auto;
+        }
+
+        #output {
+            text-align: center;
+            background-color: #c0deffa6;
+            padding: 0.1em;
+            border-radius: 8px;
+            border: 2px solid #00000075;
+            width: 40%;
+            margin: auto;
+            margin-top: 5px;
+            font-weight: bold;
+            font-size: 1.5em;
+        }
+
+        footer {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            font-size: 0.8em;
+            opacity: 0.2;
+        }
+    </style>
+</head>
+
+<body>
+    <main role="main">
+        <canvas id='canvas'>
+            <p>申し訳ありません。現在、このブラウザはキャンバス要素をサポートしていません。最新のブラウザをご使用ください。</p>
+        </canvas>
+        <p id='output'></p>
+    </main>
+
+    <footer role="contentinfo">
+        <p>&copy; 2024 Stonify5. All rights reserved.</p>
+    </footer>
+
+    <script language="javascript" type="text/javascript">
+        window.onload = function () {
+            // WebSocket setup
+            writing("サーバー接続中");
+            const socket = new WebSocket('ws' + (location.protocol === 'https:' ? 's' : '') + '://' + window.location.host + '/ws');
+
+            // Game variables
+            var check = new Array(225);
+            var myTurn = false;
+            var myColor;
+            var yourColor;
+
+            // Board setup
+            var margin;
+            var boardSize;
+
+            // Audio elements
+            var audio1 = new Audio("SOUND/stone.mp3");
+            var audio2 = new Audio("SOUND/enter.mp3");
+
+            // Canvas setup
+            canvas = document.getElementById('canvas');
+            ctx = canvas.getContext('2d');
+            setCanvasSize();
+
+            // WebSocket event handlers
+            socket.onopen = function (evt) {
+                initializeBoard();
+                writing("ユーザーマッチング中");
+
+                document.addEventListener('mouseup', function (event) {
+                    if (event.target.id == 'canvas' && myTurn) {
+                        handleCanvasClick(event);
+                    }
+                });
+            };
+
+            // Close WebSocket when leaving the page
+            window.addEventListener('beforeunload', function () {
+                if (socket.readyState === WebSocket.OPEN) {
+                    socket.close();
+                }
+            });
+
+            socket.onmessage = function (event) {
+                handleSocketMessage(event);
+            };
+
+            socket.onclose = function (evt) {
+                handleSocketClose();
+            };
+
+            // Function to set canvas size
+            function setCanvasSize() {
+                if (window.matchMedia('(orientation: portrait)').matches) {
+                    canvas.height = canvas.width = window.innerWidth * 0.9;
+                } else {
+                    canvas.height = canvas.width = window.innerHeight * 0.9;
+                }
+                margin = canvas.width / 35;
+                boardSize = (canvas.width - (margin * 2)) / 14;
+            }
+
+            // Function to initialize the game board
+            function initializeBoard() {
+                for (var x = 0; x < 14; x++) {
+                    for (var y = 0; y < 14; y++) {
+                        ctx.strokeStyle = "red";
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(
+                            boardSize * x + margin,
+                            boardSize * y + margin,
+                            boardSize,
+                            boardSize
+                        );
+                    }
+                }
+            }
+
+            // Function to handle canvas click events
+            function handleCanvasClick(event) {
+                var x = Math.round(Math.abs(event.offsetX - 20) / boardSize);
+                var y = Math.round(Math.abs(event.offsetY - 20) / boardSize);
+
+                if (!check[x + y * 15]) {
+                    check[x + y * 15] = true;
+                    draw(x + y * 15, myColor);
+                    socket.send(x + y * 15);
+                    myTurn = false;
+                }
+            }
+
+            // Function to handle WebSocket messages
+            function handleSocketMessage(event) {
+                const message = JSON.parse(event.data);
+
+                if (message.data != "") {
+                    check[message.data] = true;
+                    draw(message.data, yourColor);
+                    myTurn = true;
+                } else {
+                    handleInitialConnection(message);
+                }
+            }
+
+            // Function to handle initial connection
+            function handleInitialConnection(message) {
+                const statusMessages = ['勝利', '敗北', '勝利（時間切れ）', '敗北（時間切れ）', '勝利（相手が退出）'];
+
+                if (message.YourColor !== "") {
+                    audio2.play();
+                    myColor = message.YourColor;
+                    startTimer(myColor === "black" ? "黒石" : "白石");
+                    yourColor = myColor === "black" ? "white" : "black";
+                    setInitialConditions(myColor);
+                } else {
+                    setTimeout(function () {
+                        alert(statusMessages[message.message]);
+                    }, 500);
+                }
+            }
+
+            // Function to set initial conditions based on player color
+            function setInitialConditions(color) {
+                for (var x = 0; x < 14; x++) {
+                    for (var y = 0; y < 14; y++) {
+                        ctx.strokeStyle = "black";
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(
+                            boardSize * x + margin,
+                            boardSize * y + margin,
+                            boardSize,
+                            boardSize
+                        );
+                    }
+                }
+                if (myColor == "black") {
+                    myTurn = true;
+                    document.title = "オンライン五目:黒石";
+                } else {
+                    document.title = "オンライン五目:白石";
+                }
+            }
+
+            // Function to handle WebSocket close event
+            function handleSocketClose() {
+                writing("サーバーとの接続が切れました。");
+                setTimeout(function () {
+                    location.reload();
+                }, 1000);
+            }
+
+            // Function to draw stones on the board
+            function draw(position, color) {
+                if (position != "-1") {
+                    audio1.play();
+                    ctx.fillStyle = color;
+                    ctx.lineWidth = 2;
+                    strokeStyle = "gray";
+                    ctx.beginPath();
+                    ctx.arc(
+                        (position % Math.sqrt(225)) * boardSize + margin,
+                        (Math.floor(position / Math.sqrt(225))) * boardSize + margin,
+                        canvas.width / 40,
+                        0,
+                        Math.PI * 2
+                    );
+                    ctx.stroke();
+                    ctx.fill();
+                }
+            }
+
+            // Function to update the output text
+            function writing(txt) {
+                document.getElementById("output").innerText = txt;
+            }
+
+            // Function to start the timer
+            async function startTimer(Color) {
+                var seconds = 60;
+
+                function wait(ms) {
+                    return new Promise((resolve) => {
+                        setTimeout(resolve, ms);
+                    });
+                }
+
+                while (seconds >= 0) {
+                    seconds = (myTurn ? seconds : 60);
+                    writing(Color + (myTurn ? ' ' + seconds : ''));
+                    await wait(1000);
+                    seconds--;
+                }
+            }
+        };
+    </script>
+</body>
+
+</html>
