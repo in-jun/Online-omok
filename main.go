@@ -65,7 +65,12 @@ func main() {
 }
 
 func index(w http.ResponseWriter, r *http.Request) {
-	param := strings.TrimSuffix(r.URL.Path[1:], "/")
+	param := r.URL.Path[1:]
+	if strings.HasSuffix(param, "/") {
+		http.Redirect(w, r, "/"+strings.TrimSuffix(param, "/"), http.StatusPermanentRedirect)
+		return
+	}
+
 	if param == "" {
 		param = "index"
 	}
