@@ -187,8 +187,9 @@
             // Function to handle WebSocket messages
             function handleSocketMessage(event) {
                 const message = JSON.parse(event.data);
-
-                if (message.data != "") {
+                if (message.type === "ping") {
+                    socket.send("pong");
+                } else if (message.data != "") {
                     check[message.data] = true;
                     draw(message.data, yourColor);
                     myTurn = true;

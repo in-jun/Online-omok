@@ -273,11 +273,23 @@ func (user *user) writing(d, y, m string) bool {
 }
 
 func IsWebSocketConnected(conn *websocket.Conn) bool {
-	deadline := time.Now().Add(1 * time.Second)
-	conn.SetWriteDeadline(deadline)
-	err := conn.WriteMessage(websocket.PingMessage, nil)
-	conn.SetWriteDeadline(time.Time{})
-	return err == nil
+	if err := conn.WriteJSON(map[string]interface{}{"type": "ping"}); err != nil {
+		log.Printf("Failed to send Ping message: %v", err)
+		return false
+	}
+
+	if err := conn.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		log.Printf("Failed to set Read deadline: %v", err)
+		return false
+	}
+	defer conn.SetReadDeadline(time.Time{})
+
+	if _, pong, err := conn.ReadMessage(); err != nil || string(pong) != "pong" {
+		log.Printf("Failed to receive Pong message: %v", err)
+		return false
+	}
+
+	return true
 }
 
 func (room *OmokRoom) reset() {
