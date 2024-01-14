@@ -130,10 +130,7 @@ func RoomMatching(ws *websocket.Conn) {
 							OmokRoomData[i].user2.check = true
 							OmokRoomData[i].user2.ws = ws
 							log.Printf("User 2 joined room %d", i)
-							done := make(chan struct{})
-							go PrintRoomState(i, done)
 							OmokRoomData[i].MessageHandler()
-							close(done)
 						}
 						return
 					} else {
@@ -320,43 +317,4 @@ func (room *OmokRoom) reset() {
 	}
 	room.user1.ws = nil
 	room.user2.ws = nil
-}
-
-func PrintRoomState(roomIndex int, done chan struct{}) {
-	previousBoard := [225]uint8{}
-	ticker := time.NewTicker(10 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-done:
-			log.Println("PrintRoomState goroutine exited")
-			return
-		case <-ticker.C:
-			room := &OmokRoomData[roomIndex]
-			if room.user1.check && room.user2.check && previousBoard != room.board_15x15 {
-				log.Printf("Room %d\n", roomIndex)
-				PrintOmokBoard(room.board_15x15)
-				previousBoard = room.board_15x15
-			}
-		}
-	}
-}
-
-func PrintOmokBoard(board [225]uint8) {
-	for i := 0; i < 15; i++ {
-		for j := 0; j < 15; j++ {
-			index := i*15 + j
-			switch board[index] {
-			case black:
-				fmt.Print("B ")
-			case white:
-				fmt.Print("W ")
-			default:
-				fmt.Print(". ")
-			}
-		}
-		fmt.Println()
-	}
-	fmt.Println()
 }
