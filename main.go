@@ -120,6 +120,7 @@ func SocketHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func RoomMatching(ws *websocket.Conn) {
+	log.Println("Waiting for room matching...")
 	for {
 		for i := 0; i < max; i++ {
 			if OmokRoomData[i].user1.check {
@@ -128,7 +129,11 @@ func RoomMatching(ws *websocket.Conn) {
 						if IsWebSocketConnected(ws) {
 							OmokRoomData[i].user2.check = true
 							OmokRoomData[i].user2.ws = ws
+							log.Printf("User 2 joined room %d", i)
+							done := make(chan struct{})
+							go PrintRoomState(i, done)
 							OmokRoomData[i].MessageHandler()
+							close(done)
 						}
 						return
 					} else {
@@ -141,6 +146,7 @@ func RoomMatching(ws *websocket.Conn) {
 			if !OmokRoomData[i].user1.check {
 				OmokRoomData[i].user1.check = true
 				OmokRoomData[i].user1.ws = ws
+				log.Printf("User 1 joined room %d", i)
 				return
 			}
 		}
@@ -149,7 +155,9 @@ func RoomMatching(ws *websocket.Conn) {
 }
 
 func (room *OmokRoom) MessageHandler() {
+	log.Println("Starting the game in the room...")
 	if !room.user1.writing("", "black", "") || !room.user2.writing("", "white", "") {
+		log.Println("Failed to set up the game. Resetting the room.")
 		room.reset()
 		return
 	}
@@ -164,11 +172,13 @@ func (room *OmokRoom) MessageHandler() {
 			room.user1.writing("", "", "3")
 			room.user2.writing("", "", "2")
 			room.reset()
+			log.Println("User 1 timeout. User 2 wins. Resetting the room.")
 			return
 		}
 		if err {
 			room.user2.writing("", "", "4")
 			room.reset()
+			log.Println("Error reading from User 1. Resetting the room.")
 			return
 		}
 		if room.board_15x15[i] == emptied {
@@ -187,11 +197,13 @@ func (room *OmokRoom) MessageHandler() {
 			room.user1.writing("", "", "2")
 			room.user2.writing("", "", "3")
 			room.reset()
+			log.Println("User 2 timeout. User 1 wins. Resetting the room.")
 			return
 		}
 		if err {
 			room.user1.writing("", "", "4")
 			room.reset()
+			log.Println("Error reading from User 2. Resetting the room.")
 			return
 		}
 		if room.board_15x15[i] == emptied {
@@ -248,12 +260,13 @@ func (room *OmokRoom) SendVictoryMessage(winnerColor uint8) {
 }
 
 func reading(ws *websocket.Conn) (int, bool, bool) {
+	log.Println("Reading from WebSocket...")
 	timeoutDuration := 60 * time.Second
 	ws.SetReadDeadline(time.Now().Add(timeoutDuration))
 
 	_, m, err := ws.ReadMessage()
 	if err != nil {
-		log.Printf("conn.ReadMessage: %v", err)
+		log.Printf("Error reading from WebSocket: %v", err)
 		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 			return 0, true, false
 		}
@@ -264,15 +277,17 @@ func reading(ws *websocket.Conn) (int, bool, bool) {
 }
 
 func (user *user) writing(d, y, m string) bool {
+	log.Println("Writing to WebSocket...")
 	msg := Message{d, y, m}
 	if err := user.ws.WriteJSON(msg); err != nil {
-		log.Printf("conn.WriteMessage: %v", err)
+		log.Printf("Error writing to WebSocket: %v", err)
 		return false
 	}
 	return true
 }
 
 func IsWebSocketConnected(conn *websocket.Conn) bool {
+	log.Println("Checking WebSocket connection...")
 	if err := conn.WriteJSON(map[string]interface{}{"type": "ping"}); err != nil {
 		log.Printf("Failed to send Ping message: %v", err)
 		return false
@@ -293,6 +308,7 @@ func IsWebSocketConnected(conn *websocket.Conn) bool {
 }
 
 func (room *OmokRoom) reset() {
+	log.Println("Resetting the room...")
 	room.user1.check = false
 	room.user2.check = false
 	room.board_15x15 = [225]uint8{}
@@ -304,4 +320,43 @@ func (room *OmokRoom) reset() {
 	}
 	room.user1.ws = nil
 	room.user2.ws = nil
+}
+
+func PrintRoomState(roomIndex int, done chan struct{}) {
+	previousBoard := [225]uint8{}
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-done:
+			log.Println("PrintRoomState goroutine exited")
+			return
+		case <-ticker.C:
+			room := &OmokRoomData[roomIndex]
+			if room.user1.check && room.user2.check && previousBoard != room.board_15x15 {
+				log.Printf("Room %d\n", roomIndex)
+				PrintOmokBoard(room.board_15x15)
+				previousBoard = room.board_15x15
+			}
+		}
+	}
+}
+
+func PrintOmokBoard(board [225]uint8) {
+	for i := 0; i < 15; i++ {
+		for j := 0; j < 15; j++ {
+			index := i*15 + j
+			switch board[index] {
+			case black:
+				fmt.Print("B ")
+			case white:
+				fmt.Print("W ")
+			default:
+				fmt.Print(". ")
+			}
+		}
+		fmt.Println()
+	}
+	fmt.Println()
 }
