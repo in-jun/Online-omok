@@ -43,9 +43,9 @@ type user struct {
 }
 
 type Message struct {
-	Data      string `json:"data"`
-	YourColor string `json:"YourColor"`
-	Message   string `json:"message"`
+	Data      interface{} `json:"data,omitempty"`
+	YourColor interface{} `json:"YourColor,omitempty"`
+	Message   interface{} `json:"message,omitempty"`
 }
 
 var upgrader = websocket.Upgrader{}
@@ -153,7 +153,7 @@ func RoomMatching(ws *websocket.Conn) {
 
 func (room *OmokRoom) MessageHandler() {
 	log.Println("Starting the game in the room...")
-	if !room.user1.writing("", "black", "") || !room.user2.writing("", "white", "") {
+	if !room.user1.writing(nil, "black", nil) || !room.user2.writing(nil, "white", nil) {
 		log.Println("Failed to set up the game. Resetting the room.")
 		room.reset()
 		return
@@ -166,21 +166,21 @@ func (room *OmokRoom) MessageHandler() {
 	for {
 		i, timeout, err = reading(room.user1.ws)
 		if timeout {
-			room.user1.writing("", "", "3")
-			room.user2.writing("", "", "2")
+			room.user1.writing(nil, nil, 3)
+			room.user2.writing(nil, nil, 2)
 			room.reset()
 			log.Println("User 1 timeout. User 2 wins. Resetting the room.")
 			return
 		}
 		if err {
-			room.user2.writing("", "", "4")
+			room.user2.writing(nil, nil, 4)
 			room.reset()
 			log.Println("Error reading from User 1. Resetting the room.")
 			return
 		}
 		if room.board_15x15[i] == emptied {
 			room.board_15x15[i] = black
-			if !room.user2.writing(strconv.Itoa(i), "", "") || room.VictoryConfirm(i) {
+			if !room.user2.writing(i, nil, nil) || room.VictoryConfirm(i) {
 				room.reset()
 				return
 			}
@@ -191,21 +191,21 @@ func (room *OmokRoom) MessageHandler() {
 
 		i, timeout, err = reading(room.user2.ws)
 		if timeout {
-			room.user1.writing("", "", "2")
-			room.user2.writing("", "", "3")
+			room.user1.writing(nil, nil, 2)
+			room.user2.writing(nil, nil, 3)
 			room.reset()
 			log.Println("User 2 timeout. User 1 wins. Resetting the room.")
 			return
 		}
 		if err {
-			room.user1.writing("", "", "4")
+			room.user1.writing(nil, nil, 4)
 			room.reset()
 			log.Println("Error reading from User 2. Resetting the room.")
 			return
 		}
 		if room.board_15x15[i] == emptied {
 			room.board_15x15[i] = white
-			if !room.user1.writing(strconv.Itoa(i), "", "") || room.VictoryConfirm(i) {
+			if !room.user1.writing(i, nil, nil) || room.VictoryConfirm(i) {
 				room.reset()
 				return
 			}
@@ -247,12 +247,12 @@ func (room *OmokRoom) VictoryConfirm(index int) bool {
 
 func (room *OmokRoom) SendVictoryMessage(winnerColor uint8) {
 	if winnerColor == black {
-		room.user1.writing("", "", "0")
-		room.user2.writing("", "", "1")
+		room.user1.writing(nil, nil, 0)
+		room.user2.writing(nil, nil, 1)
 
 	} else {
-		room.user2.writing("", "", "0")
-		room.user1.writing("", "", "1")
+		room.user2.writing(nil, nil, 0)
+		room.user1.writing(nil, nil, 1)
 	}
 }
 
@@ -273,7 +273,7 @@ func reading(ws *websocket.Conn) (int, bool, bool) {
 	return i, false, false
 }
 
-func (user *user) writing(d, y, m string) bool {
+func (user *user) writing(d, y, m interface{}) bool {
 	log.Println("Writing to WebSocket...")
 	msg := Message{d, y, m}
 	if err := user.ws.WriteJSON(msg); err != nil {

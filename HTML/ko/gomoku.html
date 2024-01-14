@@ -188,32 +188,38 @@
             // Function to handle WebSocket messages
             function handleSocketMessage(event) {
                 const message = JSON.parse(event.data);
+
                 if (message.type === "ping") {
                     socket.send("pong");
-                } else if (message.data != "") {
-                    check[message.data] = true;
-                    draw(message.data, yourColor);
-                    myTurn = true;
+                } else if ('data' in message) {
+                    handleDataMessage(message);
+                } else if ('YourColor' in message) {
+                    handleColorMessage(message);
                 } else {
-                    handleInitialConnection(message);
+                    showAlertWithDelay(message.message);
                 }
             }
 
-            // Function to handle initial connection
-            function handleInitialConnection(message) {
-                const statusMessages = ['승리', '패배', '승리(시간초과)', '패배(시간초과)', '승리(상대가 나감)'];
+            // Function to handle messages with "data" field
+            function handleDataMessage(message) {
+                check[message.data] = true;
+                draw(message.data, yourColor);
+                myTurn = true;
+            }
 
-                if (message.YourColor !== "") {
-                    audio2.play();
-                    myColor = message.YourColor;
-                    startTimer(myColor === "black" ? "흑돌" : "백돌");
-                    yourColor = myColor === "black" ? "white" : "black";
-                    setInitialConditions(myColor);
-                } else {
-                    setTimeout(function () {
-                        alert(statusMessages[message.message]);
-                    }, 500);
-                }
+            // Function to handle messages with "YourColor" field
+            function handleColorMessage(message) {
+                audio2.play();
+                myColor = message.YourColor;
+                startTimer(myColor === "black" ? "흑돌" : "백돌");
+                yourColor = myColor === "black" ? "white" : "black";
+                setInitialConditions(myColor);
+            }
+
+            // Function to handle messages with "message" field
+            function showAlertWithDelay(message) {
+                const statusMessages = ['승리', '패배', '승리(시간초과)', '패배(시간초과)', '승리(상대가 나감)'];
+                setTimeout(() => alert(statusMessages[message]), 500);
             }
 
             // Function to set initial conditions based on player color
