@@ -25,9 +25,11 @@ var IMAGE embed.FS
 //go:embed SOUND
 var SOUND embed.FS
 
-const black uint8 = 1
-const white uint8 = 2
-const emptied uint8 = 0
+const (
+	black   uint8 = 1
+	white   uint8 = 2
+	emptied uint8 = 0
+)
 
 type OmokRoom struct {
 	board_15x15 [225]uint8
@@ -47,11 +49,11 @@ type Message struct {
 	NumUsers  interface{} `json:"numUsers,omitempty"`
 }
 
-var upgrader = websocket.Upgrader{}
-
-var rooms []*OmokRoom
-
-var connectionsCount = 0
+var (
+	upgrader         = websocket.Upgrader{}
+	rooms            []*OmokRoom
+	connectionsCount = 0
+)
 
 func main() {
 	// upgrader.CheckOrigin = func(r *http.Request) bool {
