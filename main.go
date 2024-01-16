@@ -46,11 +46,14 @@ type Message struct {
 	Data      interface{} `json:"data,omitempty"`
 	YourColor interface{} `json:"YourColor,omitempty"`
 	Message   interface{} `json:"message,omitempty"`
+	NumUsers  interface{} `json:"numUsers,omitempty"`
 }
 
 var upgrader = websocket.Upgrader{}
 
 var OmokRoomData [max]OmokRoom
+
+var connectionsCount = 0
 
 func main() {
 	// upgrader.CheckOrigin = func(r *http.Request) bool {
@@ -121,6 +124,8 @@ func SocketHandler(w http.ResponseWriter, r *http.Request) {
 
 func RoomMatching(ws *websocket.Conn) {
 	log.Println("Waiting for room matching...")
+	connectionsCount++
+	BroadcastConnectionsCount()
 	for {
 		for i := 0; i < max; i++ {
 			if OmokRoomData[i].user1.check {
@@ -130,7 +135,11 @@ func RoomMatching(ws *websocket.Conn) {
 							OmokRoomData[i].user2.check = true
 							OmokRoomData[i].user2.ws = ws
 							log.Printf("User 2 joined room %d", i)
+							OmokRoomData[i].user2.writing(nil, nil, nil, connectionsCount)
 							OmokRoomData[i].MessageHandler()
+						} else {
+							connectionsCount--
+							BroadcastConnectionsCount()
 						}
 						return
 					} else {
@@ -144,6 +153,7 @@ func RoomMatching(ws *websocket.Conn) {
 				OmokRoomData[i].user1.check = true
 				OmokRoomData[i].user1.ws = ws
 				log.Printf("User 1 joined room %d", i)
+				OmokRoomData[i].user1.writing(nil, nil, nil, connectionsCount)
 				return
 			}
 		}
@@ -153,7 +163,7 @@ func RoomMatching(ws *websocket.Conn) {
 
 func (room *OmokRoom) MessageHandler() {
 	log.Println("Starting the game in the room...")
-	if !room.user1.writing(nil, "black", nil) || !room.user2.writing(nil, "white", nil) {
+	if !room.user1.writing(nil, "black", nil, nil) || !room.user2.writing(nil, "white", nil, nil) {
 		log.Println("Failed to set up the game. Resetting the room.")
 		room.reset()
 		return
@@ -166,21 +176,21 @@ func (room *OmokRoom) MessageHandler() {
 	for {
 		i, timeout, err = reading(room.user1.ws)
 		if timeout {
-			room.user1.writing(nil, nil, 3)
-			room.user2.writing(nil, nil, 2)
+			room.user1.writing(nil, nil, 3, nil)
+			room.user2.writing(nil, nil, 2, nil)
 			room.reset()
 			log.Println("User 1 timeout. User 2 wins. Resetting the room.")
 			return
 		}
 		if err {
-			room.user2.writing(nil, nil, 4)
+			room.user2.writing(nil, nil, 4, nil)
 			room.reset()
 			log.Println("Error reading from User 1. Resetting the room.")
 			return
 		}
 		if room.board_15x15[i] == emptied {
 			room.board_15x15[i] = black
-			if !room.user2.writing(i, nil, nil) || room.VictoryConfirm(i) {
+			if !room.user2.writing(i, nil, nil, nil) || room.VictoryConfirm(i) {
 				room.reset()
 				return
 			}
@@ -191,21 +201,21 @@ func (room *OmokRoom) MessageHandler() {
 
 		i, timeout, err = reading(room.user2.ws)
 		if timeout {
-			room.user1.writing(nil, nil, 2)
-			room.user2.writing(nil, nil, 3)
+			room.user1.writing(nil, nil, 2, nil)
+			room.user2.writing(nil, nil, 3, nil)
 			room.reset()
 			log.Println("User 2 timeout. User 1 wins. Resetting the room.")
 			return
 		}
 		if err {
-			room.user1.writing(nil, nil, 4)
+			room.user1.writing(nil, nil, 4, nil)
 			room.reset()
 			log.Println("Error reading from User 2. Resetting the room.")
 			return
 		}
 		if room.board_15x15[i] == emptied {
 			room.board_15x15[i] = white
-			if !room.user1.writing(i, nil, nil) || room.VictoryConfirm(i) {
+			if !room.user1.writing(i, nil, nil, nil) || room.VictoryConfirm(i) {
 				room.reset()
 				return
 			}
@@ -247,12 +257,12 @@ func (room *OmokRoom) VictoryConfirm(index int) bool {
 
 func (room *OmokRoom) SendVictoryMessage(winnerColor uint8) {
 	if winnerColor == black {
-		room.user1.writing(nil, nil, 0)
-		room.user2.writing(nil, nil, 1)
+		room.user1.writing(nil, nil, 0, nil)
+		room.user2.writing(nil, nil, 1, nil)
 
 	} else {
-		room.user2.writing(nil, nil, 0)
-		room.user1.writing(nil, nil, 1)
+		room.user2.writing(nil, nil, 0, nil)
+		room.user1.writing(nil, nil, 1, nil)
 	}
 }
 
@@ -273,9 +283,9 @@ func reading(ws *websocket.Conn) (int, bool, bool) {
 	return i, false, false
 }
 
-func (user *user) writing(d, y, m interface{}) bool {
+func (user *user) writing(d, y, m, c interface{}) bool {
 	log.Println("Writing to WebSocket...")
-	msg := Message{d, y, m}
+	msg := Message{d, y, m, c}
 	if err := user.ws.WriteJSON(msg); err != nil {
 		log.Printf("Error writing to WebSocket: %v", err)
 		return false
@@ -311,10 +321,24 @@ func (room *OmokRoom) reset() {
 	room.board_15x15 = [225]uint8{}
 	if room.user1.ws != nil {
 		room.user1.ws.Close()
+		connectionsCount--
 	}
 	if room.user2.ws != nil {
 		room.user2.ws.Close()
+		connectionsCount--
 	}
 	room.user1.ws = nil
 	room.user2.ws = nil
+	BroadcastConnectionsCount()
+}
+
+func BroadcastConnectionsCount() {
+	for _, room := range OmokRoomData {
+		if room.user1.check {
+			room.user1.writing(nil, nil, nil, connectionsCount)
+		}
+		if room.user2.check {
+			room.user2.writing(nil, nil, nil, connectionsCount)
+		}
+	}
 }

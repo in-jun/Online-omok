@@ -51,6 +51,17 @@
             display: none;
         }
 
+        header {
+            position: fixed;
+            top: 0px;
+            left: 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+            pointer-events: none;
+            text-align: center;
+        }
+
         #canvas {
             display: block;
             box-shadow: 5px 5px 10px 5px #00000026;
@@ -83,6 +94,9 @@
 </head>
 
 <body>
+    <header>
+        <p id="userCount"></p>
+    </header>
     <main role="main">
         <canvas id='canvas'>
             <p>Sorry. This browser currently does not support the canvas element. Please use a more recent browser.</p>
@@ -196,6 +210,8 @@
                     handleDataMessage(message);
                 } else if ('YourColor' in message) {
                     handleColorMessage(message);
+                } else if ('numUsers' in message) {
+                    handleNumUsersMessage(message.numUsers);
                 } else {
                     showAlertWithDelay(message.message);
                 }
@@ -221,6 +237,11 @@
             function showAlertWithDelay(message) {
                 const statusMessages = ['Victory', 'Defeat', 'Victory (Time Over)', 'Defeat (Time Over)', 'Victory (Opponent Left)'];
                 setTimeout(() => alert(statusMessages[message]), 500);
+            }
+
+            // Function to handle messages with "numUsers" field
+            function handleNumUsersMessage(message) {
+                document.getElementById("userCount").innerText = "Online Users: " + message;
             }
 
             // Function to set initial conditions based on player color

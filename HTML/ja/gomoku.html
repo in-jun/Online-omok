@@ -49,6 +49,17 @@
             display: none;
         }
 
+        header {
+            position: fixed;
+            top: 0px;
+            left: 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+            pointer-events: none;
+            text-align: center;
+        }
+
         #canvas {
             display: block;
             box-shadow: 5px 5px 10px 5px #00000026;
@@ -81,6 +92,9 @@
 </head>
 
 <body>
+    <header>
+        <p id="userCount"></p>
+    </header>
     <main role="main">
         <canvas id='canvas'>
             <p>申し訳ありません。現在、このブラウザはキャンバス要素をサポートしていません。最新のブラウザをご使用ください。</p>
@@ -194,6 +208,8 @@
                     handleDataMessage(message);
                 } else if ('YourColor' in message) {
                     handleColorMessage(message);
+                } else if ('numUsers' in message) {
+                    handleNumUsersMessage(message.numUsers);
                 } else {
                     showAlertWithDelay(message.message);
                 }
@@ -219,6 +235,11 @@
             function showAlertWithDelay(message) {
                 const statusMessages = ['勝利', '敗北', '勝利（時間切れ）', '敗北（時間切れ）', '勝利（相手が退出）'];
                 setTimeout(() => alert(statusMessages[message]), 500);
+            }
+
+            // Function to handle messages with "numUsers" field
+            function handleNumUsersMessage(message) {
+                document.getElementById("userCount").innerText = "選手: " + message;
             }
 
             // Function to set initial conditions based on player color
