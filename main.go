@@ -25,8 +25,6 @@ var IMAGE embed.FS
 //go:embed SOUND
 var SOUND embed.FS
 
-const max = 100
-
 const black uint8 = 1
 const white uint8 = 2
 const emptied uint8 = 0
@@ -51,7 +49,7 @@ type Message struct {
 
 var upgrader = websocket.Upgrader{}
 
-var OmokRoomData [max]OmokRoom
+var rooms []*OmokRoom
 
 var connectionsCount = 0
 
@@ -126,39 +124,34 @@ func RoomMatching(ws *websocket.Conn) {
 	log.Println("Waiting for room matching...")
 	connectionsCount++
 	BroadcastConnectionsCount()
-	for {
-		for i := 0; i < max; i++ {
-			if OmokRoomData[i].user1.check {
-				if !OmokRoomData[i].user2.check {
-					if IsWebSocketConnected(OmokRoomData[i].user1.ws) {
-						if IsWebSocketConnected(ws) {
-							OmokRoomData[i].user2.check = true
-							OmokRoomData[i].user2.ws = ws
-							log.Printf("User 2 joined room %d", i)
-							OmokRoomData[i].user2.writing(nil, nil, nil, connectionsCount)
-							OmokRoomData[i].MessageHandler()
-						} else {
-							connectionsCount--
-							BroadcastConnectionsCount()
-						}
-						return
+
+	for _, room := range rooms {
+		if room.user1.check {
+			if !room.user2.check {
+				if IsWebSocketConnected(room.user1.ws) {
+					if IsWebSocketConnected(ws) {
+						room.user2.check = true
+						room.user2.ws = ws
+						log.Println("User 2 joined room")
+						room.user2.writing(nil, nil, nil, connectionsCount)
+						room.MessageHandler()
 					} else {
-						OmokRoomData[i].reset()
+						connectionsCount--
+						BroadcastConnectionsCount()
 					}
+					return
+				} else {
+					room.reset()
 				}
 			}
 		}
-		for i := 0; i < max; i++ {
-			if !OmokRoomData[i].user1.check {
-				OmokRoomData[i].user1.check = true
-				OmokRoomData[i].user1.ws = ws
-				log.Printf("User 1 joined room %d", i)
-				OmokRoomData[i].user1.writing(nil, nil, nil, connectionsCount)
-				return
-			}
-		}
-		time.Sleep(time.Second)
 	}
+	newRoom := &OmokRoom{}
+	newRoom.user1.check = true
+	newRoom.user1.ws = ws
+	rooms = append(rooms, newRoom)
+	newRoom.user1.writing(nil, nil, nil, connectionsCount)
+	log.Println("User 1 created a new room")
 }
 
 func (room *OmokRoom) MessageHandler() {
@@ -329,11 +322,18 @@ func (room *OmokRoom) reset() {
 	}
 	room.user1.ws = nil
 	room.user2.ws = nil
+
+	for i, r := range rooms {
+		if r == room {
+			rooms = append(rooms[:i], rooms[i+1:]...)
+			break
+		}
+	}
 	BroadcastConnectionsCount()
 }
 
 func BroadcastConnectionsCount() {
-	for _, room := range OmokRoomData {
+	for _, room := range rooms {
 		if room.user1.check {
 			room.user1.writing(nil, nil, nil, connectionsCount)
 		}
