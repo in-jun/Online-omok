@@ -115,7 +115,7 @@
             const socket = new WebSocket('ws' + (location.protocol === 'https:' ? 's' : '') + '://' + window.location.host + '/ws');
 
             // Game variables
-            var check = new Array(225);
+            var check = Array.from({ length: 15 * 15 }, () => ({ state: false, color: "" }));
             var myTurn = false;
             var myColor;
             var yourColor;
@@ -123,6 +123,7 @@
             // Board setup
             var margin;
             var boardSize;
+            var boardColor = "red";
 
             // Audio elements
             var audio1 = new Audio("/SOUND/stone.mp3");
@@ -160,6 +161,14 @@
                 handleSocketClose();
             };
 
+            function setCanvasSizeAndRedraw() {
+                setCanvasSize();
+                initializeBoard();
+                redrawStones();
+            }
+
+            window.addEventListener('resize', setCanvasSizeAndRedraw);
+
             // Function to set canvas size
             function setCanvasSize() {
                 if (window.matchMedia('(orientation: portrait)').matches) {
@@ -175,7 +184,7 @@
             function initializeBoard() {
                 for (var x = 0; x < 14; x++) {
                     for (var y = 0; y < 14; y++) {
-                        ctx.strokeStyle = "red";
+                        ctx.strokeStyle = boardColor;
                         ctx.lineWidth = 1;
                         ctx.strokeRect(
                             boardSize * x + margin,
@@ -189,14 +198,27 @@
 
             // Function to handle canvas click events
             function handleCanvasClick(event) {
-                var x = Math.round(Math.abs(event.offsetX - 20) / boardSize);
-                var y = Math.round(Math.abs(event.offsetY - 20) / boardSize);
+                var x = Math.round(Math.abs(event.offsetX - margin) / boardSize);
+                var y = Math.round(Math.abs(event.offsetY - margin) / boardSize);
 
-                if (!check[x + y * 15]) {
-                    check[x + y * 15] = true;
+                if (!check[x + y * 15].state) {
+                    check[x + y * 15].state = true;
+                    check[x + y * 15].color = myColor;
+                    audio1.play();
                     draw(x + y * 15, myColor);
                     socket.send(x + y * 15);
                     myTurn = false;
+                }
+            }
+
+            // Redraw stones on the board
+            function redrawStones() {
+                for (var x = 0; x < 15; x++) {
+                    for (var y = 0; y < 15; y++) {
+                        if (check[x + y * 15].state) {
+                            draw(x + y * 15, check[x + y * 15].color);
+                        }
+                    }
                 }
             }
 
@@ -219,7 +241,9 @@
 
             // Function to handle messages with "data" field
             function handleDataMessage(message) {
-                check[message.data] = true;
+                check[message.data].state = true;
+                check[message.data].color = yourColor;
+                audio1.play();
                 draw(message.data, yourColor);
                 myTurn = true;
             }
@@ -230,6 +254,8 @@
                 myColor = message.YourColor;
                 startTimer(myColor === "black" ? "Black Stone" : "White Stone");
                 yourColor = myColor === "black" ? "white" : "black";
+                boardColor = "black";
+                initializeBoard();
                 setInitialConditions(myColor);
             }
 
@@ -246,18 +272,6 @@
 
             // Function to set initial conditions based on player color
             function setInitialConditions(color) {
-                for (var x = 0; x < 14; x++) {
-                    for (var y = 0; y < 14; y++) {
-                        ctx.strokeStyle = "black";
-                        ctx.lineWidth = 1;
-                        ctx.strokeRect(
-                            boardSize * x + margin,
-                            boardSize * y + margin,
-                            boardSize,
-                            boardSize
-                        );
-                    }
-                }
                 if (myColor == "black") {
                     myTurn = true;
                     document.title = "Online Gomoku: Black Stone";
@@ -277,7 +291,6 @@
             // Function to draw stones on the board
             function draw(position, color) {
                 if (position != "-1") {
-                    audio1.play();
                     ctx.fillStyle = color;
                     ctx.lineWidth = 2;
                     strokeStyle = "gray";
