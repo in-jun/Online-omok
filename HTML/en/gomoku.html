@@ -119,6 +119,8 @@
             var myTurn = false;
             var myColor;
             var yourColor;
+            var currentColor;
+            var currentPosition;
 
             // Board setup
             var margin;
@@ -163,8 +165,7 @@
 
             function setCanvasSizeAndRedraw() {
                 setCanvasSize();
-                initializeBoard();
-                redrawStones();
+                draw(currentPosition, currentColor);
             }
 
             window.addEventListener('resize', setCanvasSizeAndRedraw);
@@ -216,7 +217,7 @@
                 for (var x = 0; x < 15; x++) {
                     for (var y = 0; y < 15; y++) {
                         if (check[x + y * 15].state) {
-                            draw(x + y * 15, check[x + y * 15].color);
+                            drawSton(x + y * 15, check[x + y * 15].color, "gray");
                         }
                     }
                 }
@@ -288,12 +289,22 @@
                 }, 1000);
             }
 
-            // Function to draw stones on the board
+            // Function to draw stones and board
             function draw(position, color) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                initializeBoard();
+                redrawStones();
+                drawSton(position, color, "red");
+                currentColor = color;
+                currentPosition = position;
+            }
+
+            // Function to draw stones on the board
+            function drawSton(position, color, borderColor) {
                 if (position != "-1") {
                     ctx.fillStyle = color;
                     ctx.lineWidth = 2;
-                    ctx.strokeStyle = "gray";
+                    ctx.strokeStyle = borderColor;
                     ctx.beginPath();
                     ctx.arc(
                         (position % Math.sqrt(225)) * boardSize + margin,
@@ -302,8 +313,8 @@
                         0,
                         Math.PI * 2
                     );
-                    ctx.stroke();
                     ctx.fill();
+                    ctx.stroke();
                 }
             }
 
