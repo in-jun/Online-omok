@@ -112,7 +112,7 @@
         window.onload = function () {
             // WebSocket setup
             writing("Connecting to the server");
-            const socket = new WebSocket('ws' + (location.protocol === 'https:' ? 's' : '') + '://' + window.location.host + '/ws');
+            const socket = new WebSocket('ws' + (location.protocol === 'https:' ? 's' : '') + '://' + window.location.host + '/game');
 
             // Game variables
             var check = Array.from({ length: 15 * 15 }, () => ({ state: false, color: "" }));

@@ -111,7 +111,7 @@
         window.onload = function () {
             // WebSocket setup
             writing("서버 연결중");
-            const socket = new WebSocket('ws' + (location.protocol === 'https:' ? 's' : '') + '://' + window.location.host + '/ws');
+            const socket = new WebSocket('ws' + (location.protocol === 'https:' ? 's' : '') + '://' + window.location.host + '/game');
 
             // Game variables
             var check = Array.from({ length: 15 * 15 }, () => ({ state: false, color: "" }));

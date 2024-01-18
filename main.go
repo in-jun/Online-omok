@@ -63,7 +63,7 @@ func main() {
 	http.HandleFunc("/", index)
 	http.Handle("/IMAGE/", http.FileServer(http.FS(IMAGE)))
 	http.Handle("/SOUND/", http.FileServer(http.FS(SOUND)))
-	http.HandleFunc("/ws", SocketHandler)
+	http.HandleFunc("/game", SocketHandler)
 	http.ListenAndServe(":8080", nil)
 }
 
