@@ -35,6 +35,7 @@ type OmokRoom struct {
 	board_15x15 [225]uint8
 	user1       user
 	user2       user
+	spectators  []*websocket.Conn
 }
 
 type user struct {
@@ -49,9 +50,16 @@ type Message struct {
 	NumUsers  interface{} `json:"numUsers,omitempty"`
 }
 
+type SpectatorMessage struct {
+	Board interface{} `json:"board,omitempty"`
+	Data  interface{} `json:"data,omitempty"`
+	Color interface{} `json:"color,omitempty"`
+}
+
 var (
 	upgrader         = websocket.Upgrader{}
 	rooms            []*OmokRoom
+	sockets          []*websocket.Conn
 	connectionsCount = 0
 )
 
@@ -64,6 +72,7 @@ func main() {
 	http.Handle("/IMAGE/", http.FileServer(http.FS(IMAGE)))
 	http.Handle("/SOUND/", http.FileServer(http.FS(SOUND)))
 	http.HandleFunc("/game", SocketHandler)
+	http.HandleFunc("/spectator", SpectatorHandler)
 	http.ListenAndServe(":8080", nil)
 }
 
@@ -119,7 +128,58 @@ func SocketHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("upgrader.Upgrade: %v", err)
 		return
 	}
+	sockets = append(sockets, socket)
 	RoomMatching(socket)
+}
+
+func SpectatorHandler(w http.ResponseWriter, r *http.Request) {
+	socket, err := upgrader.Upgrade(w, r, nil)
+	sockets = append(sockets, socket)
+	BroadcastConnectionsCount()
+	if err != nil {
+		log.Printf("upgrader.Upgrade: %v", err)
+		return
+	}
+
+	for {
+		for _, room := range rooms {
+			message := SpectatorMessage{room.board_15x15, nil, nil}
+			if err := socket.WriteJSON(message); err != nil {
+				log.Printf("Error writing to WebSocket: %v", err)
+				for i, r := range sockets {
+					if r == socket {
+						sockets = append(sockets[:i], sockets[i+1:]...)
+						break
+					}
+				}
+				socket.Close()
+				return
+			}
+
+			room.spectators = append(room.spectators, socket)
+
+			_, _, err := socket.ReadMessage()
+			if err != nil {
+				log.Printf("Error reading from WebSocket: %v", err)
+				for i, r := range sockets {
+					if r == socket {
+						sockets = append(sockets[:i], sockets[i+1:]...)
+						break
+					}
+				}
+				socket.Close()
+				return
+			}
+
+			for i, r := range room.spectators {
+				if r == socket {
+					room.spectators = append(room.spectators[:i], room.spectators[i+1:]...)
+					break
+				}
+			}
+		}
+
+	}
 }
 
 func RoomMatching(ws *websocket.Conn) {
@@ -128,37 +188,36 @@ func RoomMatching(ws *websocket.Conn) {
 	BroadcastConnectionsCount()
 
 	for _, room := range rooms {
-		if room.user1.check {
-			if !room.user2.check {
-				if IsWebSocketConnected(room.user1.ws) {
-					if IsWebSocketConnected(ws) {
-						room.user2.check = true
-						room.user2.ws = ws
-						log.Println("User 2 joined room")
-						room.user2.writing(nil, nil, nil, connectionsCount)
-						room.MessageHandler()
-					} else {
-						connectionsCount--
-						BroadcastConnectionsCount()
-					}
-					return
+		if room.user1.check && !room.user2.check {
+			if IsWebSocketConnected(room.user1.ws) {
+				if IsWebSocketConnected(ws) {
+					room.user2.check = true
+					room.user2.ws = ws
+					log.Println("User 2 joined room")
+					room.MessageHandler()
 				} else {
-					room.reset()
+					connectionsCount--
+					BroadcastConnectionsCount()
 				}
+				return
+			} else {
+				room.reset()
 			}
 		}
+
 	}
 	newRoom := &OmokRoom{}
 	newRoom.user1.check = true
 	newRoom.user1.ws = ws
 	rooms = append(rooms, newRoom)
-	newRoom.user1.writing(nil, nil, nil, connectionsCount)
 	log.Println("User 1 created a new room")
 }
 
 func (room *OmokRoom) MessageHandler() {
 	log.Println("Starting the game in the room...")
-	if !room.user1.writing(nil, "black", nil, nil) || !room.user2.writing(nil, "white", nil, nil) {
+	err1 := room.user1.ws.WriteJSON(Message{nil, "black", nil, nil})
+	err2 := room.user2.ws.WriteJSON(Message{nil, "white", nil, nil})
+	if err1 != nil || err2 != nil {
 		log.Println("Failed to set up the game. Resetting the room.")
 		room.reset()
 		return
@@ -171,24 +230,26 @@ func (room *OmokRoom) MessageHandler() {
 	for {
 		i, timeout, err = reading(room.user1.ws)
 		if timeout {
-			room.user1.writing(nil, nil, 3, nil)
-			room.user2.writing(nil, nil, 2, nil)
+			room.user1.ws.WriteJSON(Message{nil, nil, 3, nil})
+			room.user2.ws.WriteJSON(Message{nil, nil, 2, nil})
 			room.reset()
 			log.Println("User 1 timeout. User 2 wins. Resetting the room.")
 			return
 		}
 		if err {
-			room.user2.writing(nil, nil, 4, nil)
+			room.user2.ws.WriteJSON(Message{nil, nil, 4, nil})
 			room.reset()
 			log.Println("Error reading from User 1. Resetting the room.")
 			return
 		}
 		if room.board_15x15[i] == emptied {
 			room.board_15x15[i] = black
-			if !room.user2.writing(i, nil, nil, nil) || room.VictoryConfirm(i) {
+			err := room.user2.ws.WriteJSON(Message{i, nil, nil, nil})
+			if err != nil || room.VictoryConfirm(i) {
 				room.reset()
 				return
 			}
+			room.broadcastToSpectators(i, black)
 		} else {
 			room.reset()
 			return
@@ -196,29 +257,37 @@ func (room *OmokRoom) MessageHandler() {
 
 		i, timeout, err = reading(room.user2.ws)
 		if timeout {
-			room.user1.writing(nil, nil, 2, nil)
-			room.user2.writing(nil, nil, 3, nil)
+			room.user1.ws.WriteJSON(Message{nil, nil, 2, nil})
+			room.user2.ws.WriteJSON(Message{nil, nil, 3, nil})
 			room.reset()
 			log.Println("User 2 timeout. User 1 wins. Resetting the room.")
 			return
 		}
 		if err {
-			room.user1.writing(nil, nil, 4, nil)
+			room.user1.ws.WriteJSON(Message{nil, nil, 4, nil})
 			room.reset()
 			log.Println("Error reading from User 2. Resetting the room.")
 			return
 		}
 		if room.board_15x15[i] == emptied {
 			room.board_15x15[i] = white
-			if !room.user1.writing(i, nil, nil, nil) || room.VictoryConfirm(i) {
+			err := room.user1.ws.WriteJSON(Message{i, nil, nil, nil})
+			if err != nil || room.VictoryConfirm(i) {
 				room.reset()
 				return
 			}
+			room.broadcastToSpectators(i, white)
 		} else {
 			room.reset()
 			return
 		}
 
+	}
+}
+
+func (room *OmokRoom) broadcastToSpectators(n int, color uint8) {
+	for _, ws := range room.spectators {
+		ws.WriteJSON(SpectatorMessage{nil, n, color})
 	}
 }
 
@@ -252,12 +321,12 @@ func (room *OmokRoom) VictoryConfirm(index int) bool {
 
 func (room *OmokRoom) SendVictoryMessage(winnerColor uint8) {
 	if winnerColor == black {
-		room.user1.writing(nil, nil, 0, nil)
-		room.user2.writing(nil, nil, 1, nil)
+		room.user1.ws.WriteJSON(Message{nil, nil, 0, nil})
+		room.user2.ws.WriteJSON(Message{nil, nil, 1, nil})
 
 	} else {
-		room.user2.writing(nil, nil, 0, nil)
-		room.user1.writing(nil, nil, 1, nil)
+		room.user2.ws.WriteJSON(Message{nil, nil, 0, nil})
+		room.user1.ws.WriteJSON(Message{nil, nil, 1, nil})
 	}
 }
 
@@ -276,16 +345,6 @@ func reading(ws *websocket.Conn) (int, bool, bool) {
 	}
 	i, _ := strconv.Atoi(string(m))
 	return i, false, false
-}
-
-func (user *user) writing(d, y, m, c interface{}) bool {
-	log.Println("Writing to WebSocket...")
-	msg := Message{d, y, m, c}
-	if err := user.ws.WriteJSON(msg); err != nil {
-		log.Printf("Error writing to WebSocket: %v", err)
-		return false
-	}
-	return true
 }
 
 func IsWebSocketConnected(conn *websocket.Conn) bool {
@@ -311,9 +370,19 @@ func IsWebSocketConnected(conn *websocket.Conn) bool {
 
 func (room *OmokRoom) reset() {
 	log.Println("Resetting the room...")
-	room.user1.check = false
-	room.user2.check = false
-	room.board_15x15 = [225]uint8{}
+
+	for i, r := range sockets {
+		if r == room.user1.ws {
+			sockets = append(sockets[:i], sockets[i+1:]...)
+			break
+		}
+	}
+	for i, r := range sockets {
+		if r == room.user2.ws {
+			sockets = append(sockets[:i], sockets[i+1:]...)
+			break
+		}
+	}
 	if room.user1.ws != nil {
 		room.user1.ws.Close()
 		connectionsCount--
@@ -322,8 +391,6 @@ func (room *OmokRoom) reset() {
 		room.user2.ws.Close()
 		connectionsCount--
 	}
-	room.user1.ws = nil
-	room.user2.ws = nil
 
 	for i, r := range rooms {
 		if r == room {
@@ -331,16 +398,13 @@ func (room *OmokRoom) reset() {
 			break
 		}
 	}
+	room = nil
+
 	BroadcastConnectionsCount()
 }
 
 func BroadcastConnectionsCount() {
-	for _, room := range rooms {
-		if room.user1.check {
-			room.user1.writing(nil, nil, nil, connectionsCount)
-		}
-		if room.user2.check {
-			room.user2.writing(nil, nil, nil, connectionsCount)
-		}
+	for _, socket := range sockets {
+		socket.WriteJSON(Message{nil, nil, nil, connectionsCount})
 	}
 }
