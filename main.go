@@ -242,7 +242,7 @@ func (room *OmokRoom) MessageHandler() {
 			log.Println("Error reading from User 1. Resetting the room.")
 			return
 		}
-		if room.board_15x15[i] == emptied {
+		if room.isValidMove(i) {
 			room.board_15x15[i] = black
 			err := room.user2.ws.WriteJSON(Message{i, nil, nil, nil})
 			if err != nil || room.VictoryConfirm(i) {
@@ -269,7 +269,7 @@ func (room *OmokRoom) MessageHandler() {
 			log.Println("Error reading from User 2. Resetting the room.")
 			return
 		}
-		if room.board_15x15[i] == emptied {
+		if room.isValidMove(i) {
 			room.board_15x15[i] = white
 			err := room.user1.ws.WriteJSON(Message{i, nil, nil, nil})
 			if err != nil || room.VictoryConfirm(i) {
@@ -283,6 +283,10 @@ func (room *OmokRoom) MessageHandler() {
 		}
 
 	}
+}
+
+func (room *OmokRoom) isValidMove(index int) bool {
+	return 0 <= index && index < 225 && room.board_15x15[index] == emptied
 }
 
 func (room *OmokRoom) broadcastToSpectators(n int, color uint8) {
@@ -312,10 +316,6 @@ func (room *OmokRoom) VictoryConfirm(index int) bool {
 			}
 		}
 		if count == 5 {
-			room.SendVictoryMessage(room.board_15x15[index])
-			return true
-		}
-		if count > 5 && room.board_15x15[index] == white {
 			room.SendVictoryMessage(room.board_15x15[index])
 			return true
 		}
