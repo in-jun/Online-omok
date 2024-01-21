@@ -311,7 +311,7 @@ func (room *OmokRoom) VictoryConfirm(index int) bool {
 				break
 			}
 		}
-		if count >= 5 {
+		if count == 5 {
 			room.SendVictoryMessage(room.board_15x15[index])
 			return true
 		}
