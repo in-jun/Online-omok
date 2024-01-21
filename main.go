@@ -295,7 +295,7 @@ func (room *OmokRoom) VictoryConfirm(index int) bool {
 	directions := []int{15, 1, 16, 14}
 	for _, direction := range directions {
 		count := 1
-		for i := 1; i <= 4; i++ {
+		for i := 1; i <= 5; i++ {
 			nextStoneIndex := (direction * i) + index
 			if 0 <= nextStoneIndex && nextStoneIndex < 225 && room.board_15x15[nextStoneIndex] == room.board_15x15[index] {
 				count++
@@ -303,7 +303,7 @@ func (room *OmokRoom) VictoryConfirm(index int) bool {
 				break
 			}
 		}
-		for i := -1; i >= -4; i-- {
+		for i := -1; i >= -5; i-- {
 			nextStoneIndex := (direction * i) + index
 			if 0 <= nextStoneIndex && nextStoneIndex < 225 && room.board_15x15[nextStoneIndex] == room.board_15x15[index] {
 				count++
@@ -312,6 +312,10 @@ func (room *OmokRoom) VictoryConfirm(index int) bool {
 			}
 		}
 		if count == 5 {
+			room.SendVictoryMessage(room.board_15x15[index])
+			return true
+		}
+		if count > 5 && room.board_15x15[index] == white {
 			room.SendVictoryMessage(room.board_15x15[index])
 			return true
 		}
