@@ -13,6 +13,39 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+const serverAddress = ":8080"
+
+const (
+	BoardSize       = 15
+	TotalCells      = BoardSize * BoardSize
+	TimeoutDuration = 60 * time.Second
+	WinningCount    = 5
+)
+
+const (
+	black   uint8 = 1
+	white   uint8 = 2
+	emptied uint8 = 0
+)
+
+const (
+	StatusUser1Timeout = 3
+	StatusUser2Timeout = 2
+	StatusErrorReading = 4
+)
+
+const (
+	WebSocketPingType = "ping"
+	WebSocketPongType = "pong"
+)
+
+const (
+	HTMLPath   = "HTML"
+	ConfigPath = "CONFIGS"
+	ImagePath  = "IMAGE"
+	SoundPath  = "SOUND"
+)
+
 //go:embed CONFIGS
 var CONFIGS embed.FS
 
@@ -25,14 +58,8 @@ var IMAGE embed.FS
 //go:embed SOUND
 var SOUND embed.FS
 
-const (
-	black   uint8 = 1
-	white   uint8 = 2
-	emptied uint8 = 0
-)
-
 type OmokRoom struct {
-	board_15x15 [225]uint8
+	board_15x15 [TotalCells]uint8
 	user1       user
 	user2       user
 	spectators  []*websocket.Conn
@@ -73,7 +100,7 @@ func main() {
 	http.Handle("/SOUND/", http.FileServer(http.FS(SOUND)))
 	http.HandleFunc("/game", SocketHandler)
 	http.HandleFunc("/spectator", SpectatorHandler)
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(serverAddress, nil)
 }
 
 func index(w http.ResponseWriter, r *http.Request) {
@@ -87,21 +114,21 @@ func index(w http.ResponseWriter, r *http.Request) {
 		param = "index"
 	}
 
-	data, err := HTML.ReadFile(fmt.Sprintf("HTML/%s.html", param))
+	data, err := HTML.ReadFile(fmt.Sprintf("%s/%s.html", HTMLPath, param))
 	if err == nil {
 		w.Header().Set("Content-Type", "text/html")
 		w.Write(data)
 		return
 	}
 
-	data, err = HTML.ReadFile(fmt.Sprintf("HTML/%s/index.html", param))
+	data, err = HTML.ReadFile(fmt.Sprintf("%s/%s/index.html", HTMLPath, param))
 	if err == nil {
 		w.Header().Set("Content-Type", "text/html")
 		w.Write(data)
 		return
 	}
 
-	data, err = CONFIGS.ReadFile(fmt.Sprintf("CONFIGS/%s", param))
+	data, err = CONFIGS.ReadFile(fmt.Sprintf("%s/%s", ConfigPath, param))
 	if err == nil {
 		w.Write(data)
 		return
@@ -122,37 +149,39 @@ func serveErrorPage(w http.ResponseWriter) {
 	w.Write(data)
 }
 
-func SocketHandler(w http.ResponseWriter, r *http.Request) {
+func upgradeWebSocketConnection(w http.ResponseWriter, r *http.Request) (*websocket.Conn, error) {
 	socket, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("upgrader.Upgrade: %v", err)
+		log.Printf("Connection upgrade failed: %v", err)
+		http.Error(w, "Connection upgrade failed", http.StatusInternalServerError)
+		return nil, err
+	}
+
+	sockets = append(sockets, socket)
+	return socket, nil
+}
+
+func SocketHandler(w http.ResponseWriter, r *http.Request) {
+	socket, err := upgradeWebSocketConnection(w, r)
+	if err != nil {
 		return
 	}
-	sockets = append(sockets, socket)
 	RoomMatching(socket)
 }
 
 func SpectatorHandler(w http.ResponseWriter, r *http.Request) {
-	socket, err := upgrader.Upgrade(w, r, nil)
-	sockets = append(sockets, socket)
-	BroadcastConnectionsCount()
+	socket, err := upgradeWebSocketConnection(w, r)
 	if err != nil {
-		log.Printf("upgrader.Upgrade: %v", err)
 		return
 	}
+	BroadcastConnectionsCount()
 
 	for {
 		for _, room := range rooms {
 			message := SpectatorMessage{room.board_15x15, nil, nil}
 			if err := socket.WriteJSON(message); err != nil {
 				log.Printf("Error writing to WebSocket: %v", err)
-				for i, r := range sockets {
-					if r == socket {
-						sockets = append(sockets[:i], sockets[i+1:]...)
-						break
-					}
-				}
-				socket.Close()
+				handleSocketError(socket)
 				return
 			}
 
@@ -161,22 +190,11 @@ func SpectatorHandler(w http.ResponseWriter, r *http.Request) {
 			_, _, err := socket.ReadMessage()
 			if err != nil {
 				log.Printf("Error reading from WebSocket: %v", err)
-				for i, r := range sockets {
-					if r == socket {
-						sockets = append(sockets[:i], sockets[i+1:]...)
-						break
-					}
-				}
-				socket.Close()
+				handleSocketError(socket)
 				return
 			}
 
-			for i, r := range room.spectators {
-				if r == socket {
-					room.spectators = append(room.spectators[:i], room.spectators[i+1:]...)
-					break
-				}
-			}
+			removeSocketFromSpectators(room, socket)
 		}
 
 	}
@@ -196,8 +214,7 @@ func RoomMatching(ws *websocket.Conn) {
 					log.Println("User 2 joined room")
 					room.MessageHandler()
 				} else {
-					connectionsCount--
-					BroadcastConnectionsCount()
+					handleFailedRoomMatching()
 				}
 				return
 			} else {
@@ -230,9 +247,7 @@ func (room *OmokRoom) MessageHandler() {
 	for {
 		i, timeout, err = reading(room.user1.ws)
 		if timeout {
-			room.user1.ws.WriteJSON(Message{nil, nil, 3, nil})
-			room.user2.ws.WriteJSON(Message{nil, nil, 2, nil})
-			room.reset()
+			handleGameTimeout(room, room.user1.ws, room.user2.ws, StatusUser1Timeout, StatusUser2Timeout)
 			log.Println("User 1 timeout. User 2 wins. Resetting the room.")
 			return
 		}
@@ -257,14 +272,12 @@ func (room *OmokRoom) MessageHandler() {
 
 		i, timeout, err = reading(room.user2.ws)
 		if timeout {
-			room.user1.ws.WriteJSON(Message{nil, nil, 2, nil})
-			room.user2.ws.WriteJSON(Message{nil, nil, 3, nil})
-			room.reset()
+			handleGameTimeout(room, room.user2.ws, room.user1.ws, StatusUser2Timeout, StatusUser1Timeout)
 			log.Println("User 2 timeout. User 1 wins. Resetting the room.")
 			return
 		}
 		if err {
-			room.user1.ws.WriteJSON(Message{nil, nil, 4, nil})
+			room.user1.ws.WriteJSON(Message{nil, nil, StatusErrorReading, nil})
 			room.reset()
 			log.Println("Error reading from User 2. Resetting the room.")
 			return
@@ -281,7 +294,6 @@ func (room *OmokRoom) MessageHandler() {
 			room.reset()
 			return
 		}
-
 	}
 }
 
@@ -296,26 +308,26 @@ func (room *OmokRoom) broadcastToSpectators(n int, color uint8) {
 }
 
 func (room *OmokRoom) VictoryConfirm(index int) bool {
-	directions := []int{15, 1, 16, 14}
+	directions := []int{BoardSize, 1, BoardSize + 1, BoardSize - 1}
 	for _, direction := range directions {
 		count := 1
-		for i := 1; i <= 5; i++ {
+		for i := 1; i <= WinningCount; i++ {
 			nextStoneIndex := (direction * i) + index
-			if 0 <= nextStoneIndex && nextStoneIndex < 225 && room.board_15x15[nextStoneIndex] == room.board_15x15[index] {
+			if 0 <= nextStoneIndex && nextStoneIndex < TotalCells && room.board_15x15[nextStoneIndex] == room.board_15x15[index] {
 				count++
 			} else {
 				break
 			}
 		}
-		for i := -1; i >= -5; i-- {
+		for i := -1; i >= -WinningCount; i-- {
 			nextStoneIndex := (direction * i) + index
-			if 0 <= nextStoneIndex && nextStoneIndex < 225 && room.board_15x15[nextStoneIndex] == room.board_15x15[index] {
+			if 0 <= nextStoneIndex && nextStoneIndex < TotalCells && room.board_15x15[nextStoneIndex] == room.board_15x15[index] {
 				count++
 			} else {
 				break
 			}
 		}
-		if count == 5 {
+		if count == WinningCount {
 			room.SendVictoryMessage(room.board_15x15[index])
 			return true
 		}
@@ -336,8 +348,7 @@ func (room *OmokRoom) SendVictoryMessage(winnerColor uint8) {
 
 func reading(ws *websocket.Conn) (int, bool, bool) {
 	log.Println("Reading from WebSocket...")
-	timeoutDuration := 60 * time.Second
-	ws.SetReadDeadline(time.Now().Add(timeoutDuration))
+	ws.SetReadDeadline(time.Now().Add(TimeoutDuration))
 
 	_, m, err := ws.ReadMessage()
 	if err != nil {
@@ -353,7 +364,7 @@ func reading(ws *websocket.Conn) (int, bool, bool) {
 
 func IsWebSocketConnected(conn *websocket.Conn) bool {
 	log.Println("Checking WebSocket connection...")
-	if err := conn.WriteJSON(map[string]interface{}{"type": "ping"}); err != nil {
+	if err := conn.WriteJSON(map[string]interface{}{"type": WebSocketPingType}); err != nil {
 		log.Printf("Failed to send Ping message: %v", err)
 		return false
 	}
@@ -364,7 +375,7 @@ func IsWebSocketConnected(conn *websocket.Conn) bool {
 	}
 	defer conn.SetReadDeadline(time.Time{})
 
-	if _, pong, err := conn.ReadMessage(); err != nil || string(pong) != "pong" {
+	if _, pong, err := conn.ReadMessage(); err != nil || string(pong) != WebSocketPongType {
 		log.Printf("Failed to receive Pong message: %v", err)
 		return false
 	}
@@ -375,18 +386,9 @@ func IsWebSocketConnected(conn *websocket.Conn) bool {
 func (room *OmokRoom) reset() {
 	log.Println("Resetting the room...")
 
-	for i, r := range sockets {
-		if r == room.user1.ws {
-			sockets = append(sockets[:i], sockets[i+1:]...)
-			break
-		}
-	}
-	for i, r := range sockets {
-		if r == room.user2.ws {
-			sockets = append(sockets[:i], sockets[i+1:]...)
-			break
-		}
-	}
+	removeWebSocketFromSockets(room.user1.ws)
+	removeWebSocketFromSockets(room.user2.ws)
+
 	if room.user1.ws != nil {
 		room.user1.ws.Close()
 		connectionsCount--
@@ -396,15 +398,53 @@ func (room *OmokRoom) reset() {
 		connectionsCount--
 	}
 
+	removeRoomFromRooms(room)
+
+	BroadcastConnectionsCount()
+}
+
+func handleFailedRoomMatching() {
+	connectionsCount--
+	BroadcastConnectionsCount()
+}
+
+func handleGameTimeout(room *OmokRoom, winner, loser *websocket.Conn, winnerStatus, loserStatus int) {
+	room.user1.ws.WriteJSON(Message{nil, nil, winnerStatus, nil})
+	room.user2.ws.WriteJSON(Message{nil, nil, loserStatus, nil})
+	room.reset()
+	log.Printf("User timeout. Winner wins. Resetting the room.")
+}
+
+func handleSocketError(socket *websocket.Conn) {
+	removeWebSocketFromSockets(socket)
+	socket.Close()
+}
+
+func removeSocketFromSpectators(room *OmokRoom, socket *websocket.Conn) {
+	for i, r := range room.spectators {
+		if r == socket {
+			room.spectators = append(room.spectators[:i], room.spectators[i+1:]...)
+			break
+		}
+	}
+}
+
+func removeWebSocketFromSockets(socket *websocket.Conn) {
+	for i, r := range sockets {
+		if r == socket {
+			sockets = append(sockets[:i], sockets[i+1:]...)
+			break
+		}
+	}
+}
+
+func removeRoomFromRooms(room *OmokRoom) {
 	for i, r := range rooms {
 		if r == room {
 			rooms = append(rooms[:i], rooms[i+1:]...)
 			break
 		}
 	}
-	room = nil
-
-	BroadcastConnectionsCount()
 }
 
 func BroadcastConnectionsCount() {
