@@ -52,12 +52,28 @@
         header {
             position: fixed;
             top: 0px;
+            pointer-events: none;
+        }
+
+        #userCount {
+            position: fixed;
             left: 20px;
+            text-align: center;
             font-size: 1.2em;
             font-weight: bold;
             color: #333;
-            pointer-events: none;
+        }
+
+        #opponentNickname {
+            position: fixed;
+            right: 10px;
             text-align: center;
+            font-size: 1.2em;
+            color: #000000;
+            background-color: #00000000;
+            padding: 0.3em 0.3em;
+            border-radius: 5px;
+            border: 2px solid #00000075;
         }
 
         #canvas {
@@ -81,6 +97,46 @@
             font-size: 1.5em;
         }
 
+        #nicknamePage {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.9);
+            z-index: 999;
+        }
+
+        #nicknamePage h2 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
+
+        #nicknamePage label {
+            font-size: 1.2em;
+            margin-bottom: 5px;
+        }
+
+        #nicknameInput {
+            font-size: 1em;
+            padding: 5px;
+            margin-bottom: 10px;
+        }
+
+        #nicknamePage button {
+            font-size: 1em;
+            padding: 8px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
         footer {
             position: fixed;
             bottom: 10px;
@@ -92,12 +148,21 @@
 </head>
 
 <body>
+    <div id="nicknamePage" style="display: none;">
+        <h2>ニックネームの設定</h2>
+        <label for="nicknameInput">ニックネーム：</label>
+        <input type="text" id="nicknameInput" maxlength="10" placeholder="ユーザー名"
+            onkeydown="if(event.key==='Enter'){setNickname()}">
+        <button onclick="setNickname()">完了</button>
+    </div>
+
     <header>
         <p id="userCount"></p>
+        <p id='opponentNickname'></p>
     </header>
     <main role="main">
         <canvas id='canvas'>
-            <p>申し訳ありません。現在、このブラウザはキャンバス要素をサポートしていません。最新のブラウザをご使用ください。</p>
+            <p>Sorry. This browser currently does not support the canvas element. Please use a more recent browser.</p>
         </canvas>
         <p id='output'></p>
     </main>
@@ -107,238 +172,272 @@
     </footer>
 
     <script language="javascript" type="text/javascript">
-        window.onload = function () {
-            // WebSocket setup
-            writing("サーバー接続中");
-            const socket = new WebSocket('ws' + (location.protocol === 'https:' ? 's' : '') + '://' + window.location.host + '/game');
+        // WebSocket setup
+        writing("Connecting to the server");
+        const socket = new WebSocket('ws' + (location.protocol === 'https:' ? 's' : '') + '://' + window.location.host + '/game');
 
-            // Game variables
-            var check = Array.from({ length: 15 * 15 }, () => ({ state: false, color: "" }));
-            var myTurn = false;
-            var myColor;
-            var yourColor;
-            var currentColor;
-            var currentPosition;
+        // Game variables
+        var check = Array.from({ length: 15 * 15 }, () => ({ state: false, color: "" }));
+        var myTurn = false;
+        var myColor;
+        var yourColor;
+        var currentColor;
+        var currentPosition;
+        var storedNickname = getNickname();
 
-            // Board setup
-            var margin;
-            var boardSize;
-            var boardColor = "red";
+        // Board setup
+        var margin;
+        var boardSize;
+        var boardColor = "red";
 
-            // Audio elements
-            var audio1 = new Audio("/SOUND/stone.mp3");
-            var audio2 = new Audio("/SOUND/enter.mp3");
+        // Audio elements
+        var audio1 = new Audio("/SOUND/stone.mp3");
+        var audio2 = new Audio("/SOUND/enter.mp3");
 
-            // Canvas setup
-            canvas = document.getElementById('canvas');
-            ctx = canvas.getContext('2d');
-            setCanvasSize();
+        // Canvas setup
+        canvas = document.getElementById('canvas');
+        ctx = canvas.getContext('2d');
+        setCanvasSize();
 
-            // WebSocket event handlers
-            socket.onopen = function (evt) {
-                initializeBoard();
-                writing("ユーザーマッチング中");
+        function setNickname() {
+            var nickname = document.getElementById("nicknameInput").value;
+            if (nickname) {
+                socket.send(nickname);
+                localStorage.setItem("nickname", nickname);
+                storedNickname = nickname;
+                document.getElementById("nicknamePage").style.display = "none";
+            } else {
+                alert("You must enter a nickname.");
+            }
+        }
 
-                document.addEventListener('mouseup', function (event) {
-                    if (event.target.id == 'canvas' && myTurn) {
-                        handleCanvasClick(event);
-                    }
-                });
-            };
+        function getNickname() {
+            return localStorage.getItem("nickname");
+        }
 
-            // Close WebSocket when leaving the page
-            window.addEventListener('beforeunload', function () {
-                if (socket.readyState === WebSocket.OPEN) {
-                    socket.close();
+        // WebSocket event handlers
+        socket.onopen = function (evt) {
+            initializeBoard();
+            writing("ユーザーマッチング中");
+
+            if (storedNickname) {
+                socket.send(storedNickname);
+            } else {
+                document.getElementById("nicknamePage").style.display = "flex";
+            }
+
+            document.addEventListener('mouseup', function (event) {
+                if (event.target.id == 'canvas' && myTurn) {
+                    handleCanvasClick(event);
                 }
             });
-
-            socket.onmessage = function (event) {
-                handleSocketMessage(event);
-            };
-
-            socket.onclose = function (evt) {
-                handleSocketClose();
-            };
-
-            function setCanvasSizeAndRedraw() {
-                setCanvasSize();
-                draw(currentPosition, currentColor);
-            }
-
-            window.addEventListener('resize', setCanvasSizeAndRedraw);
-
-            // Function to set canvas size
-            function setCanvasSize() {
-                if (window.matchMedia('(orientation: portrait)').matches) {
-                    canvas.height = canvas.width = window.innerWidth * 0.9;
-                } else {
-                    canvas.height = canvas.width = window.innerHeight * 0.9;
-                }
-                margin = canvas.width / 35;
-                boardSize = (canvas.width - (margin * 2)) / 14;
-            }
-
-            // Function to initialize the game board
-            function initializeBoard() {
-                for (var x = 0; x < 14; x++) {
-                    for (var y = 0; y < 14; y++) {
-                        ctx.strokeStyle = boardColor;
-                        ctx.lineWidth = 1;
-                        ctx.strokeRect(
-                            boardSize * x + margin,
-                            boardSize * y + margin,
-                            boardSize,
-                            boardSize
-                        );
-                    }
-                }
-            }
-
-            // Function to handle canvas click events
-            function handleCanvasClick(event) {
-                var x = Math.round(Math.abs(event.offsetX - margin) / boardSize);
-                var y = Math.round(Math.abs(event.offsetY - margin) / boardSize);
-
-                if (!check[x + y * 15].state) {
-                    check[x + y * 15].state = true;
-                    check[x + y * 15].color = myColor;
-                    audio1.play();
-                    draw(x + y * 15, myColor);
-                    socket.send(x + y * 15);
-                    myTurn = false;
-                }
-            }
-
-            // Redraw stones on the board
-            function redrawStones() {
-                for (var x = 0; x < 15; x++) {
-                    for (var y = 0; y < 15; y++) {
-                        if (check[x + y * 15].state) {
-                            drawSton(x + y * 15, check[x + y * 15].color, "gray");
-                        }
-                    }
-                }
-            }
-
-            // Function to handle WebSocket messages
-            function handleSocketMessage(event) {
-                const message = JSON.parse(event.data);
-
-                if (message.type === "ping") {
-                    socket.send("pong");
-                } else if ('data' in message) {
-                    handleDataMessage(message);
-                } else if ('YourColor' in message) {
-                    handleColorMessage(message);
-                } else if ('numUsers' in message) {
-                    handleNumUsersMessage(message.numUsers);
-                } else {
-                    showAlertWithDelay(message.message);
-                }
-            }
-
-            // Function to handle messages with "data" field
-            function handleDataMessage(message) {
-                check[message.data].state = true;
-                check[message.data].color = yourColor;
-                audio1.play();
-                draw(message.data, yourColor);
-                myTurn = true;
-            }
-
-            // Function to handle messages with "YourColor" field
-            function handleColorMessage(message) {
-                audio2.play();
-                myColor = message.YourColor;
-                startTimer(myColor === "black" ? "黒石" : "白石");
-                yourColor = myColor === "black" ? "white" : "black";
-                boardColor = "black";
-                initializeBoard();
-                setInitialConditions(myColor);
-            }
-
-            // Function to handle messages with "message" field
-            function showAlertWithDelay(message) {
-                const statusMessages = ['勝利', '敗北', '勝利（時間切れ）', '敗北（時間切れ）', '勝利（相手が退出）'];
-                setTimeout(() => alert(statusMessages[message]), 500);
-            }
-
-            // Function to handle messages with "numUsers" field
-            function handleNumUsersMessage(message) {
-                document.getElementById("userCount").innerText = "選手: " + message;
-            }
-
-            // Function to set initial conditions based on player color
-            function setInitialConditions(color) {
-                if (myColor == "black") {
-                    myTurn = true;
-                    document.title = "オンライン五目:黒石";
-                } else {
-                    document.title = "オンライン五目:白石";
-                }
-            }
-
-            // Function to handle WebSocket close event
-            function handleSocketClose() {
-                writing("サーバーとの接続が切れました。");
-                setTimeout(function () {
-                    location.reload();
-                }, 1000);
-            }
-
-            // Function to draw stones and board
-            function draw(position, color) {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                initializeBoard();
-                redrawStones();
-                drawSton(position, color, "red");
-                currentColor = color;
-                currentPosition = position;
-            }
-
-            // Function to draw stones on the board
-            function drawSton(position, color, borderColor) {
-                if (position != "-1") {
-                    ctx.fillStyle = color;
-                    ctx.lineWidth = 2;
-                    ctx.strokeStyle = borderColor;
-                    ctx.beginPath();
-                    ctx.arc(
-                        (position % Math.sqrt(225)) * boardSize + margin,
-                        (Math.floor(position / Math.sqrt(225))) * boardSize + margin,
-                        canvas.width / 40,
-                        0,
-                        Math.PI * 2
-                    );
-                    ctx.fill();
-                    ctx.stroke();
-                }
-            }
-
-            // Function to update the output text
-            function writing(txt) {
-                document.getElementById("output").innerText = txt;
-            }
-
-            // Function to start the timer
-            async function startTimer(Color) {
-                var seconds = 60;
-
-                function wait(ms) {
-                    return new Promise((resolve) => {
-                        setTimeout(resolve, ms);
-                    });
-                }
-
-                while (seconds >= 0) {
-                    seconds = (myTurn ? seconds : 60);
-                    writing(Color + (myTurn ? ' ' + seconds : ''));
-                    await wait(1000);
-                    seconds--;
-                }
-            }
         };
+
+        // Close WebSocket when leaving the page
+        window.addEventListener('beforeunload', function () {
+            if (socket.readyState === WebSocket.OPEN) {
+                socket.close();
+            }
+        });
+
+        socket.onmessage = function (event) {
+            handleSocketMessage(event);
+        };
+
+        socket.onclose = function (evt) {
+            handleSocketClose();
+        };
+
+        function setCanvasSizeAndRedraw() {
+            setCanvasSize();
+            draw(currentPosition, currentColor);
+        }
+
+        window.addEventListener('resize', setCanvasSizeAndRedraw);
+
+        // Function to set canvas size
+        function setCanvasSize() {
+            if (window.matchMedia('(orientation: portrait)').matches) {
+                canvas.height = canvas.width = window.innerWidth * 0.9;
+            } else {
+                canvas.height = canvas.width = window.innerHeight * 0.9;
+            }
+            margin = canvas.width / 35;
+            boardSize = (canvas.width - (margin * 2)) / 14;
+        }
+
+        // Function to initialize the game board
+        function initializeBoard() {
+            for (var x = 0; x < 14; x++) {
+                for (var y = 0; y < 14; y++) {
+                    ctx.strokeStyle = boardColor;
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(
+                        boardSize * x + margin,
+                        boardSize * y + margin,
+                        boardSize,
+                        boardSize
+                    );
+                }
+            }
+        }
+
+        // Function to handle canvas click events
+        function handleCanvasClick(event) {
+            var x = Math.round(Math.abs(event.offsetX - margin) / boardSize);
+            var y = Math.round(Math.abs(event.offsetY - margin) / boardSize);
+
+            if (!check[x + y * 15].state) {
+                check[x + y * 15].state = true;
+                check[x + y * 15].color = myColor;
+                audio1.play();
+                draw(x + y * 15, myColor);
+                socket.send(x + y * 15);
+                myTurn = false;
+            }
+        }
+
+        // Redraw stones on the board
+        function redrawStones() {
+            for (var x = 0; x < 15; x++) {
+                for (var y = 0; y < 15; y++) {
+                    if (check[x + y * 15].state) {
+                        drawSton(x + y * 15, check[x + y * 15].color, "gray");
+                    }
+                }
+            }
+        }
+
+        // Function to handle WebSocket messages
+        function handleSocketMessage(event) {
+            const message = JSON.parse(event.data);
+
+            if (message.type === "ping") {
+                socket.send("pong");
+            }
+            if ('data' in message) {
+                handleDataMessage(message);
+            }
+            if ('YourColor' in message) {
+                handleColorMessage(message);
+            }
+            if ('numUsers' in message) {
+                handleNumUsersMessage(message.numUsers);
+            }
+            if ('nickname' in message) {
+                handleNicknameMessage(message.nickname);
+            }
+            if ('message' in message) {
+                showAlertWithDelay(message.message);
+            }
+        }
+
+        // Function to handle messages with "data" field
+        function handleDataMessage(message) {
+            check[message.data].state = true;
+            check[message.data].color = yourColor;
+            audio1.play();
+            draw(message.data, yourColor);
+            myTurn = true;
+        }
+
+        // Function to handle messages with "YourColor" field
+        function handleColorMessage(message) {
+            audio2.play();
+            myColor = message.YourColor;
+            startTimer(myColor === "black" ? "Black Stone" : "White Stone");
+            yourColor = myColor === "black" ? "white" : "black";
+            boardColor = "black";
+            initializeBoard();
+            setInitialConditions(myColor);
+        }
+
+        // Function to handle messages with "message" field
+        function showAlertWithDelay(message) {
+            const statusMessages = ['勝利', '敗北', '勝利（時間切れ）', '敗北（時間切れ）', '勝利（相手が退出）'];
+            setTimeout(() => alert(statusMessages[message]), 500);
+        }
+
+        // Function to handle messages with "numUsers" field
+        function handleNumUsersMessage(message) {
+            document.getElementById("userCount").innerText = "選手: " + message;
+        }
+
+        // Function to handle messages with "nickname" field
+        function handleNicknameMessage(nickname) {
+            var vsMessage = storedNickname + " vs " + nickname;
+            document.getElementById("opponentNickname").innerText = vsMessage;
+        }
+
+        // Function to set initial conditions based on player color
+        function setInitialConditions(color) {
+            if (myColor == "black") {
+                myTurn = true;
+                document.title = "オンライン五目:黒石";
+            } else {
+                document.title = "オンライン五目:白石";
+            }
+        }
+
+        // Function to handle WebSocket close event
+        function handleSocketClose() {
+            writing("サーバーとの接続が切れました。");
+            setTimeout(function () {
+                location.reload();
+            }, 1000);
+        }
+
+        // Function to draw stones and board
+        function draw(position, color) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            initializeBoard();
+            redrawStones();
+            drawSton(position, color, "red");
+            currentColor = color;
+            currentPosition = position;
+        }
+
+        // Function to draw stones on the board
+        function drawSton(position, color, borderColor) {
+            if (position != "-1") {
+                ctx.fillStyle = color;
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = borderColor;
+                ctx.beginPath();
+                ctx.arc(
+                    (position % Math.sqrt(225)) * boardSize + margin,
+                    (Math.floor(position / Math.sqrt(225))) * boardSize + margin,
+                    canvas.width / 40,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+                ctx.stroke();
+            }
+        }
+
+        // Function to update the output text
+        function writing(txt) {
+            document.getElementById("output").innerText = txt;
+        }
+
+        // Function to start the timer
+        async function startTimer(Color) {
+            var seconds = 60;
+
+            function wait(ms) {
+                return new Promise((resolve) => {
+                    setTimeout(resolve, ms);
+                });
+            }
+
+            while (seconds >= 0) {
+                seconds = (myTurn ? seconds : 60);
+                writing(Color + (myTurn ? ' ' + seconds : ''));
+                await wait(1000);
+                seconds--;
+            }
+        }
     </script>
 </body>
 

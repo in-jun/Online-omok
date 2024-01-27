@@ -86,6 +86,14 @@
             font-size: 1.2em;
         }
 
+        #userNames {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #333;
+            pointer-events: none;
+            text-align: right;
+        }
+
         #canvas {
             display: block;
             box-shadow: 5px 5px 10px 5px #00000026;
@@ -110,8 +118,9 @@
     </header>
     <main role="main">
         <button id="nextButton">Next Room</button>
+        <p id="userNames"></p>
         <canvas id='canvas'>
-            <p>Sorry. This browser currently does not support the canvas element. Please use a more recent browser.</p>
+            <p>죄송합니다. 현재 이 브라우저는 캔버스 요소를 지원하지 않습니다. 최신 브라우저를 사용해주십시오.</p>
         </canvas>
     </main>
 
@@ -227,12 +236,18 @@
                 const message = JSON.parse(event.data);
                 if (message.type === "ping") {
                     socket.send("pong");
-                } else if ('numUsers' in message) {
+                }
+                if ('numUsers' in message) {
                     handleNumUsersMessage(message.numUsers);
-                } else if ('data' in message) {
+                }
+                if ('data' in message) {
                     handleDataMessage(message);
-                } else if ('board' in message) {
+                }
+                if ('board' in message) {
                     handleBoardMessage(message);
+                }
+                if ('user1' in message && 'user2' in message) {
+                    handleNicknameMessage(message);
                 }
             }
 
@@ -261,6 +276,11 @@
                     }
                 }
                 redrawStones();
+            }
+
+            // Function to handle messages with "user" field
+            function handleNicknameMessage(message) {
+                document.getElementById("userNames").innerText = `${message.user1} vs ${message.user2}`;
             }
 
             // Function to handle WebSocket close event
