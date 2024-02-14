@@ -1,23 +1,23 @@
-# 온라인 오목 게임
+# Online Gomoku Game
 
-이 프로젝트는 온라인 멀티플레이어 오목 게임을 구현한 프로젝트입니다. 오목은 가로, 세로, 대각선으로 다섯 개의 돌을 먼저 놓는 플레이어가 승리하는 보드 게임으로, 두 명의 플레이어가 번갈아가며 돌을 놓습니다.
+This project implements an online multiplayer Gomoku game. Gomoku is a board game where the first player to place five stones in a row horizontally, vertically, or diagonally wins. Two players take turns placing stones.
 
-## 기능
+## Features
 
--   **실시간 멀티플레이어 게임**: 두 명의 플레이어가 인터넷을 통해 실시간으로 게임을 플레이합니다.
--   **WebSocket 통신**: 서버와 클라이언트 간에 WebSocket을 사용하여 실시간 통신을 수행합니다.
--   **게임 방 매칭**: 서버는 두 플레이어를 자동으로 매칭하여 게임 방을 생성합니다.
+-   **Real-time Multiplayer Game**: Two players play the game in real-time over the internet.
+-   **WebSocket Communication**: Real-time communication between the server and clients is achieved using WebSocket.
+-   **Game Room Matching**: The server automatically matches two players to create a game room.
 
-## 프로젝트 구성
+## Project Structure
 
-이 프로젝트는 두 부분으로 구성됩니다.
+This project consists of two parts:
 
-1. **서버 측 코드 (Go)**: 온라인 오목 게임의 서버를 구현한 코드입니다. WebSocket 연결 관리, 게임 방 매칭, 게임 로직 등을 담당합니다.
+1. **Server-side Code (Go)**: The code that implements the server for the online Gomoku game. It handles WebSocket connection management, game room matching, game logic, etc.
 
-2. **클라이언트 측 코드 (HTML, JavaScript)**: 웹 브라우저에서 동작하는 클라이언트 측 코드로, 사용자 인터페이스를 구성하고 WebSocket을 통해 서버와 실시간으로 통신하여 게임을 진행합니다.
+2. **Client-side Code (HTML, JavaScript)**: The client-side code that runs in web browsers. It constructs the user interface and communicates with the server in real-time using WebSocket to play the game.
 
-## 실행 방법
+## How to Run
 
-1. 브라우저 접속: 온라인 오목 게임을 플레이하려면 [stonify5.com](https://stonify5.com) 주소로 웹 브라우저에 접속합니다.
+1. Open Browser: To play the online Gomoku game, navigate to [stonify5.com](https://stonify5.com) in a web browser.
 
-2. 플레이: 웹 브라우저를 통해 접속하면 두 명의 플레이어가 매칭되어 게임이 시작됩니다. 각 플레이어는 번갈아가며 돌을 놓아서 승리를 목표로 합니다.
+2. Play: Upon accessing through a web browser, two players will be matched, and the game will start. Each player takes turns placing stones aiming for victory.
