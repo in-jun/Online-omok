@@ -3,7 +3,7 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN go build -o online-omok main.go
+RUN go build -o online-omok .
 
 FROM alpine:latest
 WORKDIR /app
